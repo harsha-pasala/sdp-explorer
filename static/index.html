@@ -405,6 +405,33 @@
   .vrow .vnum { font-size: 13px; text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
   .vsave { margin-top: 10px; font-size: 14px; color: var(--keep); font-weight: 600; }
 
+  /* ---- Enzyme (incremental MV refresh) ---- */
+  .enz-stream { display: flex; flex-direction: column; gap: 6px; }
+  .enz-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px;
+             padding: 9px 12px; border: 1px solid var(--src-line); background: var(--src-soft);
+             border-radius: 8px; transition: opacity .5s, transform .5s; }
+  .enz-row.entering { opacity: 0; transform: translateY(-14px); }
+  .enz-row.leaving { opacity: 0; transform: translateX(38px); }
+  .enz-row .oid { font-family: "DM Mono", monospace; font-size: 12px; color: var(--src); }
+  .enz-row .amt { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); font-family: "DM Mono", monospace; font-size: 12.5px; }
+  .enz-tag { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+             padding: 2px 8px; border-radius: 99px; background: #fff; border: 1px solid var(--src-line); color: var(--src); justify-self: start; }
+  .enz-empty { color: var(--muted); font-size: 13px; padding: 30px 10px; text-align: center; }
+
+  table.enz-mv { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .enz-mv th { text-align: left; font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  .enz-mv th.r, .enz-mv td.r { text-align: right; }
+  .enz-mv td { padding: 10px; border-bottom: 1px solid var(--line-2); font-family: "DM Mono", monospace; font-size: 12.5px; color: var(--ink); transition: opacity .4s; }
+  .enz-mv td.grp { font-family: "DM Sans", sans-serif; font-weight: 600; }
+  .enz-mv td.num { font-variant-numeric: tabular-nums; color: var(--ink-2); }
+  .enz-mv tr.recompute td { animation: flashrow .9s ease; }
+  .enz-mv tr.recompute td:first-child { border-left: 3px solid var(--blue); }
+  .enz-mv tr.recompute td.num { color: var(--blue); font-weight: 600; }
+  .enz-mv tr.skipped td { opacity: .4; }
+  .enz-st { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+  .enz-st.re { color: var(--blue); }
+  .enz-st.sk { color: var(--muted); }
+
   .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); }
   .legend span { display: inline-flex; align-items: center; gap: 6px; }
   .legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; border: 1px solid var(--line); }
@@ -486,7 +513,7 @@ const NAV = [
   {
     group: "Incremental refresh",
     items: [
-      { id: "enzyme", name: "Enzyme", status: "soon" },
+      { id: "enzyme", name: "Enzyme", status: "ready" },
     ]
   },
   {
@@ -506,6 +533,7 @@ const DEMOS = {
   "auto-cdc": autoCdcDemo,
   "auto-cdc-snapshot": autoCdcSnapshotDemo,
   "auto-cdc-bitemporal": autoCdcBitemporalDemo,
+  "enzyme": enzymeDemo,
 };
 
 function placeholder(name) {
@@ -1032,6 +1060,119 @@ function autoCdcBitemporalDemo() {
   `;
 }
 
+/* ---------- ENZYME (incremental materialized-view refresh) ---------- */
+function enzymeDemo() {
+  return `
+  <div class="crumb">SDP Explorer <span class="sep">›</span> Incremental refresh <span class="sep">›</span> <b>Enzyme</b></div>
+  <h1>Enzyme</h1>
+  <p class="oneliner"><b>Enzyme</b> is the engine behind <em>incremental</em> materialized-view refresh. When new rows land in the source of an aggregate, it doesn't rebuild the whole result — it figures out which <em>groups</em> those rows belong to and recomputes only those. There's no API and no flag: Enzyme kicks in automatically whenever a materialized view is refreshed on serverless compute.</p>
+
+  <section>
+    <h2>See what it does</h2>
+    <p style="color:var(--ink-2);font-size:14px;margin:-8px 0 18px;max-width:74ch;">Hit <b>Start</b> and watch orders stream in. Each batch of rows touches only a couple of regions — and only those rows in <code class="kw">sales_by_region</code> light up and recompute. Everything else stays frozen.</p>
+    <div class="flow">
+      <div class="tbl src-panel">
+        <div class="tbl-head">
+          <div class="name">orders</div>
+          <div class="sub">incoming rows · source of the MV</div>
+        </div>
+        <div class="tbl-body"><div class="enz-stream" id="enzStream"><div class="enz-empty">Press Start to stream orders in.</div></div></div>
+      </div>
+      <div class="arrow" id="enzArrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </div>
+      <div class="tbl">
+        <div class="tbl-head">
+          <div class="name">sales_by_region</div>
+          <div class="sub">materialized view · GROUP BY region</div>
+        </div>
+        <div class="tbl-body"><table class="enz-mv" id="enzMv"></table></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="enzPlay">▶ Start demo</button>
+      <button id="enzReset" class="ghost">Reset</button>
+      <label style="font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;">Speed
+        <select id="enzSpeed" style="font-family:inherit;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);">
+          <option value="1" selected>Slow</option>
+          <option value="0.62">Normal</option>
+          <option value="0.36">Fast</option>
+        </select>
+      </label>
+      <span class="narr" id="enzNarr">An aggregate over <code class="kw">orders</code>. New orders only ever change the regions they belong to.</span>
+    </div>
+
+    <div class="recon diff" id="enzBanner"><span class="ic">◔</span><p id="enzBannerTxt"></p></div>
+
+    <div class="vmeter">
+      <div class="vh">Group recomputes · Enzyme vs full refresh</div>
+      <div class="vrow"><span class="vlabel">Full refresh</span><div class="vtrack"><div class="vfill full" style="width:100%"></div></div><span class="vnum" id="enzFullNum">0 recomputes</span></div>
+      <div class="vrow"><span class="vlabel">Enzyme</span><div class="vtrack"><div class="vfill rewind" id="enzFill" style="width:0"></div></div><span class="vnum" id="enzIncNum">0 recomputes</span></div>
+      <div class="vsave" id="enzSave">5 groups in the MV · each batch touches only a few.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The flow</h2>
+    <div class="code-card">
+      <div class="bar">SQL</div>
+<div class="sql"><span class="c-key">CREATE OR REFRESH MATERIALIZED VIEW</span> <span class="c-tbl">sales_by_region</span>
+<span class="c-key">AS SELECT</span>
+  region,
+  <span class="c-key">count</span>(*)      <span class="c-key">AS</span> orders,
+  <span class="c-key">sum</span>(amount) <span class="c-key">AS</span> revenue
+<span class="c-key">FROM</span> <span class="c-tbl">orders</span>
+<span class="c-key">GROUP BY</span> region;</div>
+    </div>
+    <div class="note">
+      <span class="ic">ⓘ</span>
+      <p><b>Nothing here turns Enzyme on.</b> It's not a clause or a setting — it's the cost model the pipeline runs every time this MV refreshes on serverless. The engine inspects what changed in <code class="kw">orders</code>, decides whether an incremental recompute is cheaper than a full one, and if so recomputes only the affected groups. Plain <code class="kw">count</code>/<code class="kw">sum</code> aggregates like this are the sweet spot.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Why not recompute the whole view?</h2>
+    <div class="grid2">
+      <div class="box bad">
+        <h3>Full recompute</h3>
+        <p>Every refresh re-scans <b>all</b> of <code class="kw">orders</code> and rebuilds <b>all 5 groups</b> — even when the new data only touched one or two. Cost scales with the size of the whole table, not with what changed.</p>
+      </div>
+      <div class="box good">
+        <h3>Enzyme (incremental)</h3>
+        <p>Tracks the changed rows, maps them to their groups, and recomputes <b>only those groups</b>. A batch that touches 2 of 5 regions costs ~2/5 of a full refresh — the untouched groups are served straight from the existing result.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>When to leverage it</h2>
+    <div class="grid2">
+      <div>
+        <div class="col-h">Reach for it when</div>
+        <ul class="clean">
+          <li>You materialize aggregates or joins over a large source where each refresh only touches a slice of the groups.</li>
+          <li>New data is mostly <em>appended</em> (recent activity), so most groups are unchanged between refreshes.</li>
+          <li>You want the simplicity of a declarative MV with the cost profile of an incremental job — no hand-written merge logic.</li>
+        </ul>
+      </div>
+      <div>
+        <div class="col-h">Watch out</div>
+        <ul class="clean watch">
+          <li><b>Serverless only</b> — Enzyme's incremental refresh doesn't run on classic compute; those MVs fall back to full recompute.</li>
+          <li>The engine decides <em>per refresh</em>. If a change touches every group, or the query isn't incrementally maintainable, it falls back to a full rebuild — by design.</li>
+          <li>The event log's <code class="kw">num_output_rows</code> reports the MV's <b>total</b> row count, not the rows recomputed — don't read it as the incremental work done.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note">
+      <span class="ic">ⓘ</span>
+      <p>Enzyme was introduced with Delta Live Tables (now Lakeflow Spark Declarative Pipelines) — see the announcement: <a href="https://www.databricks.com/blog/2022/06/29/delta-live-tables-announces-new-capabilities-and-performance-optimizations.html" target="_blank" rel="noopener">Delta Live Tables announces new capabilities and performance optimizations</a>.</p>
+    </div>
+  </section>
+  `;
+}
+
 /* ============================================================
    RUNTIME
    ============================================================ */
@@ -1067,13 +1208,23 @@ function route(id) {
     if (id === "auto-cdc") wireAutoCdc();
     if (id === "auto-cdc-snapshot") wireAutoCdcSnapshot();
     if (id === "auto-cdc-bitemporal") wireAutoCdcBitemporal();
+    if (id === "enzyme") wireEnzyme();
   } else {
     const item = NAV.flatMap(g => g.items).find(i => i.id === id);
     main.innerHTML = placeholder(item ? item.name : id);
   }
   main.scrollTop = 0;
   window.scrollTo(0, 0);
+  if (location.hash !== "#" + id) history.replaceState(null, "", "#" + id);
 }
+
+const NAV_ITEMS = NAV.flatMap(g => g.items);
+function routeFromHash() {
+  const id = decodeURIComponent(location.hash.slice(1));
+  const item = NAV_ITEMS.find(i => i.id === id && i.status !== "soon");
+  route(item ? id : "replace-where");
+}
+window.addEventListener("hashchange", routeFromHash);
 
 /* ---------- REPLACE WHERE animation wiring ---------- */
 function wireReplaceWhere() {
@@ -1863,8 +2014,172 @@ function wireBitemporalAsOf() {
   readout.innerHTML += ` <span style="color:var(--muted);">Now read down to <b class="pin" style="color:var(--ink-2)">12:27</b> in the same column — the answer flips to XFv3.</span>`;
 }
 
+/* ---------- ENZYME — incremental MV refresh animation ---------- */
+function wireEnzyme() {
+  const REGIONS = [
+    { key: "ON", name: "Ontario" },
+    { key: "QC", name: "Quebec" },
+    { key: "BC", name: "British Columbia" },
+    { key: "AB", name: "Alberta" },
+    { key: "MB", name: "Manitoba" },
+  ];
+  const TOTAL_GROUPS = REGIONS.length;
+  // MV already has history — seed each group with realistic running totals
+  const SEED = {
+    ON: { orders: 1840, revenue: 412300 },
+    QC: { orders: 1206, revenue: 271450 },
+    BC: { orders:  974, revenue: 233800 },
+    AB: { orders:  712, revenue: 168900 },
+    MB: { orders:  388, revenue:  86120 },
+  };
+
+  const streamEl = document.getElementById("enzStream");
+  const mvEl     = document.getElementById("enzMv");
+  const arrow    = document.getElementById("enzArrow");
+  const playBtn  = document.getElementById("enzPlay");
+  const resetBtn = document.getElementById("enzReset");
+  const narr     = document.getElementById("enzNarr");
+  const banner   = document.getElementById("enzBanner");
+  const bannerTxt= document.getElementById("enzBannerTxt");
+  const fullNum  = document.getElementById("enzFullNum");
+  const incNum   = document.getElementById("enzIncNum");
+  const incFill  = document.getElementById("enzFill");
+  const saveEl   = document.getElementById("enzSave");
+
+  const speedSel = document.getElementById("enzSpeed");
+
+  let mv, incoming, oid, batchNo, fullRecomputes, incRecomputes, running, timer, speedMul = 1;
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  const w = ms => wait(ms * speedMul);   // speed-scaled pause
+  const fmtMoney = v => "$" + v.toLocaleString();
+
+  function renderMv(touched = {}) {
+    mvEl.innerHTML =
+      `<thead><tr><th>region</th><th class="r">orders</th><th class="r">revenue</th><th class="r">refresh</th></tr></thead>` +
+      `<tbody>` + REGIONS.map(r => {
+        const g = mv[r.key];
+        const st = touched[r.key];
+        const cls = st === "re" ? "recompute" : st === "sk" ? "skipped" : "";
+        const stCell = st === "re" ? '<span class="enz-st re">recomputed</span>'
+                     : st === "sk" ? '<span class="enz-st sk">skipped</span>' : '';
+        return `<tr class="${cls}">
+          <td class="grp">${r.key} · ${r.name}</td>
+          <td class="num r">${g.orders.toLocaleString()}</td>
+          <td class="num r">${fmtMoney(g.revenue)}</td>
+          <td class="r">${stCell}</td>
+        </tr>`;
+      }).join("") + `</tbody>`;
+  }
+
+  function renderStream(msg) {
+    if (!incoming.length) {
+      streamEl.innerHTML = `<div class="enz-empty">${msg || "Press Start to stream orders in."}</div>`;
+      return;
+    }
+    streamEl.innerHTML = incoming.map(o =>
+      `<div class="enz-row${o.fresh ? " entering" : ""}">
+        <span class="oid">#${o.id}</span>
+        <span class="enz-tag">${o.region}</span>
+        <span class="amt">${fmtMoney(o.amt)}</span>
+      </div>`).join("");
+  }
+
+  function reset() {
+    stop();
+    mv = {}; REGIONS.forEach(r => mv[r.key] = { ...SEED[r.key] });
+    incoming = []; oid = 10428; batchNo = 0; fullRecomputes = 0; incRecomputes = 0;
+    renderStream(); renderMv();
+    arrow.classList.remove("live");
+    banner.classList.remove("show");
+    narr.innerHTML = "An aggregate over <code class='kw'>orders</code>. New orders only ever change the regions they belong to.";
+    fullNum.textContent = "0 recomputes"; incNum.textContent = "0 recomputes";
+    incFill.style.width = "0"; saveEl.textContent = "5 groups in the MV · each batch touches only a few.";
+    playBtn.textContent = "▶ Start demo"; playBtn.disabled = false;
+  }
+
+  function stop() {
+    running = false;
+    if (timer) { clearTimeout(timer); timer = null; }
+    if (playBtn) playBtn.textContent = "▶ Start demo";
+    if (arrow) arrow.classList.remove("live");
+  }
+
+  async function tick() {
+    if (!running) return;
+    batchNo++;
+    // 1 or 2 rows per batch; pick distinct regions
+    const size = (batchNo % 4 === 0) ? 2 : 1;
+    const picks = [];
+    while (picks.length < size) {
+      const r = REGIONS[Math.floor(Math.random() * TOTAL_GROUPS)].key;
+      if (!picks.includes(r)) picks.push(r);
+    }
+    const rows = picks.map(region => ({ id: oid++, region, amt: 40 + Math.floor(Math.random() * 460), fresh: true }));
+
+    // this batch arrives in the source (only the current batch is shown)
+    incoming = rows;
+    renderStream();
+    arrow.classList.add("live");
+    await wait(60);
+    incoming.forEach(o => o.fresh = false);
+    streamEl.querySelectorAll(".enz-row.entering").forEach(el => el.classList.remove("entering"));
+    await w(950);
+    if (!running) return;
+
+    // engine maps changed rows → affected groups, recomputes only those
+    const touchedSet = {};
+    REGIONS.forEach(r => touchedSet[r.key] = "sk");
+    rows.forEach(o => {
+      mv[o.region].orders += 1;
+      mv[o.region].revenue += o.amt;
+      touchedSet[o.region] = "re";
+    });
+    renderMv(touchedSet);
+
+    fullRecomputes += TOTAL_GROUPS;     // a full refresh would rebuild all groups every batch
+    incRecomputes  += picks.length;     // Enzyme only rebuilds the touched ones
+    fullNum.textContent = `${fullRecomputes} recomputes`;
+    incNum.textContent  = `${incRecomputes} recomputes`;
+    incFill.style.width = (incRecomputes / fullRecomputes * 100).toFixed(1) + "%";
+    const saved = Math.round((1 - incRecomputes / fullRecomputes) * 100);
+    saveEl.textContent = `Enzyme did ${incRecomputes} of ${fullRecomputes} possible recomputes — ${saved}% of group work skipped.`;
+
+    const list = picks.map(p => `<b>${p}</b>`).join(" + ");
+    banner.classList.add("show");
+    bannerTxt.innerHTML = `Batch #${batchNo}: ${rows.length} row${rows.length > 1 ? "s" : ""} → ${list}. Enzyme recomputed <b>${picks.length} of ${TOTAL_GROUPS}</b> groups; the other ${TOTAL_GROUPS - picks.length} were served unchanged.`;
+    narr.innerHTML = "Only the touched groups light up and recompute — untouched groups are reused as-is.";
+
+    await w(1500);
+    if (!running) return;
+
+    // clear this batch out before the next one arrives, and settle the MV
+    streamEl.querySelectorAll(".enz-row").forEach(el => el.classList.add("leaving"));
+    await w(480);
+    if (!running) return;
+    incoming = [];
+    renderStream("Batch applied — next batch incoming…");
+    renderMv();
+    arrow.classList.remove("live");
+    timer = setTimeout(tick, 900 * speedMul);
+  }
+
+  function start() {
+    if (running) { stop(); return; }
+    if (fullRecomputes === 0) { banner.classList.remove("show"); }
+    running = true;
+    playBtn.textContent = "❚❚ Stop";
+    tick();
+  }
+
+  speedSel.addEventListener("change", () => { speedMul = parseFloat(speedSel.value); });
+  playBtn.addEventListener("click", start);
+  resetBtn.addEventListener("click", reset);
+  speedMul = parseFloat(speedSel.value);
+  reset();
+}
+
 /* ---------- boot ---------- */
-route("replace-where");
+routeFromHash();
 </script>
 </body>
 </html>
