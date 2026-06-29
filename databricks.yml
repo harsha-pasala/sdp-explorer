@@ -1,0 +1,17 @@
+bundle:
+  name: sdp-explorer
+
+resources:
+  apps:
+    sdp-explorer:
+      name: sdp-explorer
+      description: "SDP Explorer — interactive Lakeflow Spark Declarative Pipelines feature demonstrations"
+      source_code_path: .
+      config:
+        command:
+          - python
+          - app.py
+
+targets:
+  dev:
+    default: true

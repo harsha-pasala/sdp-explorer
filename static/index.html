@@ -1,0 +1,1870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SDP Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff;
+    --ink: #1b3139;
+    --ink-2: #475a63;
+    --muted: #6b7c85;
+    --line: #e2e7ea;
+    --line-2: #eef1f3;
+    --panel: #f7f8f9;
+    --blue: #2272b4;
+    --blue-bg: #eaf3fa;
+    --red: #ff3621;
+    --red-soft: #ff36211a;
+    --keep: #2f8a5b;
+    --keep-soft: #eaf6ef;
+    --keep-line: #bfe3cf;
+    --target: #c2410c;
+    --target-soft: #fff1e9;
+    --target-line: #f6caac;
+    --src: #2272b4;
+    --src-soft: #eaf3fa;
+    --src-line: #bcd8ee;
+    --sidebar-w: 300px;
+    --header-h: 64px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "DM Sans", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px; line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--blue); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* ---------- HEADER ---------- */
+  header {
+    position: sticky; top: 0; z-index: 50;
+    height: var(--header-h);
+    display: flex; align-items: center; gap: 28px;
+    padding: 0 26px;
+    background: #fff; border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand .logo { height: 24px; width: auto; display: block; }
+  .brand .sep { color: var(--line); font-weight: 300; font-size: 22px; margin: 0 2px; }
+  .brand .product { font-size: 16px; font-weight: 500; color: var(--ink-2); letter-spacing: -0.01em; }
+  header nav { display: flex; gap: 22px; margin-left: 8px; }
+  header nav a { color: var(--ink); font-size: 15px; font-weight: 500; }
+  header nav a.active { color: var(--blue); }
+  .header-spacer { flex: 1; }
+
+  /* ---------- LAYOUT ---------- */
+  .shell { display: grid; grid-template-columns: var(--sidebar-w) 1fr; align-items: start; }
+
+  /* ---------- SIDEBAR ---------- */
+  aside {
+    position: sticky; top: var(--header-h);
+    height: calc(100vh - var(--header-h));
+    overflow-y: auto;
+    border-right: 1px solid var(--line);
+    padding: 22px 0 60px;
+    background: #fff;
+  }
+  .side-title { padding: 0 22px 14px; font-size: 14px; font-weight: 600; color: var(--ink); border-bottom: 1px solid var(--line-2); margin-bottom: 8px; }
+  .nav-group { margin-top: 14px; }
+  .nav-group > .grp-label {
+    padding: 6px 22px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+  }
+  .nav-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 22px; font-size: 14.5px; color: var(--ink-2); cursor: pointer;
+    border-left: 3px solid transparent;
+  }
+  .nav-item:hover { background: var(--panel); color: var(--ink); }
+  .nav-item.active { color: var(--blue); border-left-color: var(--red); background: var(--blue-bg); font-weight: 600; }
+  .nav-item.soon { color: #aab6bd; cursor: default; }
+  .nav-item.soon:hover { background: transparent; }
+  .pill { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); background: var(--panel); border: 1px solid var(--line); border-radius: 99px; padding: 1px 7px; }
+
+  /* ---------- MAIN ---------- */
+  main { padding: 40px 48px 100px; max-width: 1240px; }
+  .crumb { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  .crumb b { color: var(--ink-2); font-weight: 600; }
+  .crumb .sep { margin: 0 8px; color: var(--line); }
+  h1 { font-size: 40px; font-weight: 600; letter-spacing: -0.015em; margin: 0 0 10px; line-height: 1.1; }
+  .oneliner { color: var(--ink-2); font-size: 18px; margin: 0 0 36px; max-width: 74ch; line-height: 1.55; }
+  code.kw { font-family: "DM Mono", ui-monospace, Menlo, monospace; color: var(--red); font-size: .9em; background: var(--red-soft); padding: 1px 5px; border-radius: 4px; }
+
+  section { margin-bottom: 42px; }
+  section > h2 {
+    font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--muted); margin: 0 0 18px; padding-bottom: 10px; border-bottom: 1px solid var(--line-2);
+  }
+
+  /* ---- code block ---- */
+  .code-card { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin: 0 0 24px; }
+  .code-card .bar { background: var(--panel); border-bottom: 1px solid var(--line); padding: 7px 14px; font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: .04em; }
+  .sql { background: #fff; padding: 16px 18px; font-family: "DM Mono", ui-monospace, Menlo, monospace; font-size: 13.5px; line-height: 1.75; overflow-x: auto; color: var(--ink); white-space: pre; }
+  .sql .c-key { color: var(--blue); font-weight: 500; }
+  .sql .c-tbl { color: var(--ink); }
+  .sql .c-str { color: var(--keep); }
+  .sql .c-num { color: var(--target); }
+  .sql .c-dim { color: var(--muted); }
+  .sql .hl { background: #fff3cd; border-radius: 3px; box-shadow: 0 0 0 1px #f3e2a6; }
+
+  /* ---- flow ---- */
+  .flow { display: grid; grid-template-columns: 1fr 56px 1fr; align-items: stretch; }
+  .tbl { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; }
+  .tbl-head { padding: 11px 14px; border-bottom: 1px solid var(--line); background: var(--panel); }
+  .tbl-head .name { font-family: "DM Mono", monospace; font-size: 13.5px; font-weight: 500; color: var(--ink); }
+  .tbl-head .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .tbl-body { padding: 8px; min-height: 232px; }
+  .src-panel .tbl-head { background: var(--src-soft); border-bottom-color: var(--src-line); }
+  .src-panel .name { color: var(--src); }
+
+  .row {
+    display: grid; grid-template-columns: 92px 1fr auto; align-items: center; gap: 8px;
+    padding: 9px 11px; margin: 6px 0; border-radius: 7px;
+    background: #fff; border: 1px solid var(--line); font-size: 13.5px;
+    transition: opacity .45s ease, transform .5s cubic-bezier(.4,0,.2,1), background .4s, border-color .4s,
+                max-height .45s ease, padding .45s, margin .45s;
+    max-height: 56px; overflow: hidden;
+  }
+  .row .part { font-family: "DM Mono", monospace; color: var(--ink-2); font-size: 12.5px; }
+  .row .label { color: var(--ink); }
+  .row .amt { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+  .row.keep   { background: var(--keep-soft);   border-color: var(--keep-line); }
+  .row.target { background: var(--target-soft); border-color: var(--target-line); }
+  .row.src    { background: var(--src-soft);    border-color: var(--src-line); }
+  .row.removing { opacity: 0; max-height: 0; padding-top: 0; padding-bottom: 0; margin: 0; transform: translateX(40px) scale(.96); }
+  .row.entering { opacity: 0; transform: translateX(-46px); }
+  .row.consumed { opacity: .3; filter: saturate(.4); }
+
+  .tag { font-size: 9.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; padding: 2px 7px; border-radius: 99px; white-space: nowrap; }
+  .tag.keep   { background: #fff; color: var(--keep);   border: 1px solid var(--keep-line); }
+  .tag.target { background: #fff; color: var(--target); border: 1px solid var(--target-line); }
+  .tag.src    { background: #fff; color: var(--src);    border: 1px solid var(--src-line); }
+
+  .arrow { display: flex; align-items: center; justify-content: center; color: var(--muted); }
+  .arrow svg { width: 28px; height: 28px; }
+  .arrow.live svg { color: var(--red); animation: nudge .8s ease-in-out infinite; }
+  @keyframes nudge { 0%,100%{ transform: translateX(0);} 50%{ transform: translateX(4px);} }
+
+  .controls { display: flex; gap: 12px; align-items: center; margin-top: 22px; flex-wrap: wrap; }
+  button {
+    font-family: inherit; background: var(--red); color: #fff; border: none; border-radius: 6px;
+    padding: 10px 18px; font-size: 14px; font-weight: 600; cursor: pointer; transition: filter .15s, transform .05s;
+  }
+  button:hover { filter: brightness(1.06); }
+  button:active { transform: translateY(1px); }
+  button.ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+  button:disabled { opacity: .45; cursor: default; }
+  .narr { color: var(--ink-2); font-size: 14px; min-height: 22px; flex: 1; min-width: 240px; }
+  .narr b { color: var(--ink); }
+
+  .note { display: flex; gap: 12px; background: var(--blue-bg); border: 1px solid var(--src-line); border-left: 4px solid var(--blue); border-radius: 8px; padding: 14px 16px; margin-top: 20px; }
+  .note .ic { color: var(--blue); font-weight: 700; }
+  .note p { margin: 0; font-size: 14px; color: var(--ink-2); line-height: 1.5; }
+  .note b { color: var(--ink); }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .box { border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; background: #fff; }
+  .box h3 { margin: 0 0 8px; font-size: 15px; font-weight: 600; }
+  .box.bad h3  { color: var(--target); }
+  .box.good h3 { color: var(--keep); }
+  .box p { margin: 0; color: var(--ink-2); font-size: 14px; line-height: 1.5; }
+
+  .col-h { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 4px; }
+  ul.clean { margin: 8px 0 0; padding-left: 20px; }
+  ul.clean li { margin: 9px 0; font-size: 14px; line-height: 1.5; color: var(--ink); }
+  ul.watch li::marker { color: var(--red); }
+
+  /* placeholder for unbuilt demos */
+  .placeholder { text-align: center; padding: 90px 20px; color: var(--muted); }
+  .placeholder h1 { font-size: 28px; color: var(--ink-2); }
+
+  /* ---- preview marking ---- */
+  .pill.preview { color: #9a5b00; background: #fff6e6; border-color: #f2d399; }
+  .badge-preview {
+    display: inline-flex; align-items: center; gap: 6px; vertical-align: middle;
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+    color: #9a5b00; background: #fff6e6; border: 1px solid #f2d399; border-radius: 99px; padding: 3px 10px; margin-left: 14px;
+  }
+  .preview-banner {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: #fff8ec; border: 1px solid #f2d399; border-left: 4px solid #e8920a; border-radius: 8px;
+    padding: 13px 16px; margin: 0 0 30px;
+  }
+  .preview-banner .ic { color: #e8920a; font-size: 16px; line-height: 1.4; }
+  .preview-banner p { margin: 0; font-size: 13.5px; color: #6b5320; line-height: 1.5; }
+  .preview-banner b { color: #5a4410; }
+  .preview-banner code { font-family: "DM Mono", monospace; font-size: .92em; background: #fff0d4; padding: 1px 5px; border-radius: 4px; color: #7a4d00; }
+
+  /* ---- JSON highlighting ---- */
+  .sql .c-jkey { color: var(--blue); }
+
+  /* ---- rewind timeline stage ---- */
+  .stage { position: relative; border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px 22px; background: linear-gradient(180deg,#fff, #fcfdfd); --lane-label: 132px; }
+  .tdiv { position: absolute; top: 14px; bottom: 14px; left: calc(50% + 66px); width: 0; border-left: 2px dashed #e8920a; z-index: 3; }
+  .tdiv span { position: absolute; top: -2px; left: 6px; font-size: 10.5px; font-weight: 700; color: #b9760a; white-space: nowrap; text-transform: uppercase; letter-spacing: .05em; }
+  .lane { display: grid; grid-template-columns: var(--lane-label) 1fr; align-items: center; margin: 9px 0; }
+  .lane-label { font-size: 13px; font-weight: 600; color: var(--ink); padding-right: 14px; display: flex; flex-direction: column; gap: 1px; }
+  .lane-label .sub2 { font-size: 11px; font-weight: 400; color: var(--muted); }
+  .lane-label .code-badge { margin-top: 5px; align-self: flex-start; font-family: "DM Mono", monospace; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 5px; border: 1px solid var(--line); transition: all .4s; }
+  .code-badge.good  { color: var(--keep);   background: var(--keep-soft);   border-color: var(--keep-line); }
+  .code-badge.bad   { color: var(--target); background: var(--target-soft); border-color: var(--target-line); }
+  .code-badge.fixed { color: var(--blue);   background: var(--blue-bg);     border-color: var(--src-line); }
+  .track { display: grid; grid-template-columns: repeat(var(--cols, 8), 1fr); gap: 4px; position: relative; }
+  .axis-track { margin-bottom: 2px; }
+  .axis-track .tick { text-align: center; font-family: "DM Mono", monospace; font-size: 10px; color: var(--muted); white-space: nowrap; }
+  .cell {
+    height: 38px; border-radius: 5px; display: flex; align-items: center; justify-content: center;
+    font-family: "DM Mono", monospace; font-size: 10.5px; border: 1px solid var(--line); background: #fff;
+    transition: background .5s, border-color .5s, color .5s, opacity .5s, transform .5s;
+  }
+  .src-cell.consumed  { opacity: .4; }
+  .src-cell.available { border-color: var(--src-line); background: var(--src-soft); color: var(--src); border-style: dashed; }
+  .src-cell.replaying { border-color: var(--src); background: var(--src-soft); color: var(--src); animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{ box-shadow: 0 0 0 0 #2272b400; } 50%{ box-shadow: 0 0 0 3px #2272b433; } }
+  .tgt-cell.good  { background: var(--keep-soft);   border-color: var(--keep-line); color: var(--keep); }
+  .tgt-cell.bad   { background: var(--target-soft); border-color: var(--target-line); color: var(--target); }
+  .tgt-cell.empty { border-style: dashed; color: #c4ccd1; }
+  .pipe-track { height: 34px; }
+  .ckpt-rail { position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: var(--line); }
+  .ckpt-ptr { position: absolute; top: 50%; transform: translate(-50%, -50%); transition: left .8s cubic-bezier(.4,0,.2,1); z-index: 2; }
+  .ckpt-ptr .dot { width: 14px; height: 14px; border-radius: 50%; background: var(--ink); border: 3px solid #fff; box-shadow: 0 0 0 1px var(--ink); margin: 0 auto; }
+  .ckpt-ptr span { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); font-size: 10px; color: var(--ink-2); white-space: nowrap; font-weight: 600; }
+
+  .steps { display: flex; gap: 10px; flex-wrap: wrap; margin: 18px 0 0; }
+  .step { flex: 1; min-width: 180px; border: 1px solid var(--line); border-radius: 8px; padding: 10px 13px; background: #fff; transition: all .35s; opacity: .55; }
+  .step .num { font-weight: 700; color: var(--muted); margin-right: 6px; }
+  .step .t { font-size: 13px; font-weight: 600; color: var(--ink); }
+  .step .d { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.4; }
+  .step.active { opacity: 1; border-color: var(--red); box-shadow: 0 0 0 1px var(--red); }
+  .step.active .num { color: var(--red); }
+  .step.done { opacity: 1; border-color: var(--keep-line); background: var(--keep-soft); }
+  .step.done .num { color: var(--keep); }
+
+  /* ---- interactive rewind ---- */
+  .rr-grid { position: relative; --lane-label: 132px; --cols: 15; }
+  .rr-band { position: absolute; top: 36px; bottom: 6px; right: 0; background: rgba(232,146,10,.07); border-left: 2px dashed #e8920a; z-index: 1; pointer-events: none; border-radius: 0 6px 6px 0; transition: left .15s; }
+  .rr-band .flag { position: absolute; top: -22px; left: -1px; transform: translateX(-50%); background: #e8920a; color: #fff; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; white-space: nowrap; letter-spacing: .04em; }
+  .rr-bug { position: absolute; top: 36px; z-index: 2; pointer-events: none; transform: translateX(-50%); }
+  .rr-bug .bm { width: 0; border-left: 2px dotted var(--target); height: calc(100% - 42px); position: absolute; top: 0; transition: border-color .5s; }
+  .rr-bug .bl { position: absolute; top: -22px; transform: translateX(-50%); background: var(--target-soft); color: var(--target); border: 1px solid var(--target-line); font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; white-space: nowrap; transition: background .5s, color .5s, border-color .5s; }
+  .rr-bug.patched .bm { border-left-color: var(--keep); }
+  .rr-bug.patched .bl { background: var(--keep-soft); color: var(--keep); border-color: var(--keep-line); }
+
+  .rr-ruler { position: relative; height: 30px; cursor: pointer; touch-action: none; }
+  .rr-ruler .rail { position: absolute; left: 0; right: 0; top: 50%; height: 5px; background: var(--line); border-radius: 3px; transform: translateY(-50%); }
+  .rr-ruler .fillpast { position: absolute; left: 0; top: 50%; height: 5px; background: var(--keep-line); border-radius: 3px; transform: translateY(-50%); transition: width .15s; }
+  .rr-handle { position: absolute; top: 50%; width: 20px; height: 20px; border-radius: 50%; background: #fff; border: 4px solid #e8920a; box-shadow: 0 1px 5px #0003; transform: translate(-50%,-50%); z-index: 3; cursor: grab; transition: left .15s; }
+  .rr-handle:active { cursor: grabbing; }
+  .rr-handle::after { content: "‹ ›"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #e8920a; letter-spacing: -1px; }
+
+  .tgt-cell { flex-direction: column; gap: 0; font-size: 10px; line-height: 1.12; }
+  .tgt-cell .bn { font-size: 8.5px; color: var(--muted); }
+  .tgt-cell.kept { color: var(--ink-2); }
+  .tgt-cell.replayed { animation: flashgood .8s ease; }
+  @keyframes flashgood {
+    0%{ transform: scale(.86); box-shadow: 0 0 0 0 rgba(47,138,91,0); }
+    45%{ transform: scale(1.08); box-shadow: 0 0 0 5px rgba(47,138,91,.45); }
+    100%{ transform: scale(1); box-shadow: 0 0 0 0 rgba(47,138,91,0); }
+  }
+  .tgt-cell.erasing { animation: flasherase .7s ease; }
+  @keyframes flasherase {
+    0%{ box-shadow: 0 0 0 0 rgba(194,65,12,0); }
+    45%{ box-shadow: 0 0 0 5px rgba(194,65,12,.5); transform: scale(1.06); }
+    100%{ box-shadow: 0 0 0 0 rgba(194,65,12,0); transform: scale(1); }
+  }
+  .tgt-cell.targeting { box-shadow: 0 0 0 2px rgba(232,146,10,.55); }
+
+  .insight { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; padding: 12px 15px; background: var(--blue-bg); border: 1px solid var(--src-line); border-radius: 8px; }
+  .insight .ic { color: var(--blue); font-size: 15px; }
+  .insight p { margin: 0; font-size: 13.5px; color: var(--ink-2); line-height: 1.5; }
+  .insight b { color: var(--ink); }
+
+  /* ---- AUTO CDC ---- */
+  .cdc-toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .cdc-toggle button { background: #fff; color: var(--ink-2); border: none; padding: 8px 18px; font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; transition: all .15s; }
+  .cdc-toggle button + button { border-left: 1px solid var(--line); }
+  .cdc-toggle button.active { background: var(--ink); color: #fff; }
+  .cdc-mode-desc { font-size: 13.5px; color: var(--ink-2); margin: 10px 0 18px; }
+  .cdc-mode-desc b { color: var(--ink); }
+
+  .cdc-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 900px){ .cdc-wrap { grid-template-columns: 1fr; } }
+
+  .ev-head { display: grid; grid-template-columns: 72px 64px 52px 1fr; gap: 9px; padding: 2px 11px 9px; font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 700; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+  .ev { display: grid; grid-template-columns: 72px 64px 52px 1fr; align-items: center; gap: 9px; padding: 8px 11px; margin: 6px 0; border: 1px solid var(--line); border-radius: 7px; background: #fff; font-size: 12.5px; transition: opacity .35s, border-color .35s, box-shadow .35s, background .35s; }
+  .ev.pending { opacity: .38; }
+  .ev.applied { opacity: .68; }
+  .ev.current { opacity: 1; border-color: var(--ink); box-shadow: 0 0 0 2px rgba(27,49,57,.14); }
+  .ev .k { font-family: "DM Mono", monospace; color: var(--ink-2); font-size: 11.5px; }
+  .ev .seq { font-family: "DM Mono", monospace; color: var(--muted); text-align: center; }
+  .ev .dat { color: var(--ink); }
+  .op { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 3px 0; border-radius: 4px; text-align: center; }
+  .op.ins { background: var(--keep-soft); color: var(--keep); border: 1px solid var(--keep-line); }
+  .op.upd { background: var(--src-soft); color: var(--src); border: 1px solid var(--src-line); }
+  .op.del { background: var(--target-soft); color: var(--target); border: 1px solid var(--target-line); }
+  .late-tag { font-size: 8.5px; font-weight: 700; color: #9a5b00; background: #fff6e6; border: 1px solid #f2d399; border-radius: 99px; padding: 1px 6px; margin-left: 6px; white-space: nowrap; }
+
+  table.cdc-out { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .cdc-out th { text-align: left; font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; padding: 7px 9px; border-bottom: 1px solid var(--line); }
+  .cdc-out td { padding: 8px 9px; border-bottom: 1px solid var(--line-2); font-family: "DM Mono", monospace; font-size: 12px; color: var(--ink); }
+  .cdc-out tr.flash td { animation: flashrow .9s ease; }
+  @keyframes flashrow { 0%{ background: rgba(34,114,180,0); } 35%{ background: rgba(34,114,180,.16); } 100%{ background: rgba(34,114,180,0); } }
+  .cdc-out tr.closed td { color: var(--muted); }
+  .cdc-out .seqcell { color: var(--ink-2); }
+  .cdc-out .open { color: var(--keep); font-weight: 600; }
+  .badge-cur { font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--keep); background: var(--keep-soft); border: 1px solid var(--keep-line); border-radius: 99px; padding: 1px 6px; margin-left: 6px; }
+  .cdc-empty { color: var(--muted); font-size: 13px; padding: 24px 10px; text-align: center; }
+  .recon { display: none; gap: 10px; align-items: flex-start; margin-top: 16px; padding: 13px 16px; border-radius: 8px; background: #fff8ec; border: 1px solid #f2d399; border-left: 4px solid #e8920a; }
+  .recon.show { display: flex; }
+  .recon .ic { color: #e8920a; font-size: 15px; }
+  .recon p { margin: 0; font-size: 13.5px; color: #6b5320; line-height: 1.5; }
+  .recon b { color: #5a4410; }
+  /* informational diff banner (snapshot card) — consistent for every snapshot */
+  .recon.diff { background: var(--blue-bg); border-color: var(--src-line); border-left-color: var(--blue); }
+  .recon.diff .ic { color: var(--blue); }
+  .recon.diff p { color: var(--ink-2); }
+  .recon.diff b { color: var(--ink); }
+  .op.same { background: var(--panel); color: var(--muted); border: 1px solid var(--line); }
+  /* snapshot diff annotations (engine-derived, not columns in the data) */
+  .cdc-out tr.newrow td { background: var(--keep-soft); }
+  .cdc-out tr.newrow td:first-child { border-left: 3px solid var(--keep); }
+  .cdc-out tr.chgrow td:first-child { border-left: 3px solid var(--src); }
+  .cdc-out td.chgcell { background: var(--src-soft); color: var(--src); font-weight: 600; }
+  .cdc-out tr.delrow td { color: var(--muted); }
+  .cdc-out tr.delrow td:first-child { border-left: 3px solid var(--target-line); }
+  .cdc-out tr.delrow td.cityx { text-decoration: line-through; }
+  .gonetag { font-size: 9px; font-weight: 700; color: var(--target); background: var(--target-soft); border: 1px solid var(--target-line); border-radius: 99px; padding: 1px 6px; margin-left: 6px; text-decoration: none; display: inline-block; }
+  .snlegend { font-size: 11.5px; color: var(--muted); margin: 10px 2px 0; line-height: 1.45; }
+  .snlegend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; vertical-align: middle; margin: 0 3px 0 8px; }
+  .snlegend i.n { background: var(--keep-soft); border: 1px solid var(--keep); }
+  .snlegend i.c { background: var(--src-soft); border: 1px solid var(--src); }
+  .snlegend i.d { background: var(--target-soft); border: 1px solid var(--target-line); }
+
+  /* bitemporal two-axis table */
+  .cdc-out th.grp { text-align: center; font-size: 9px; letter-spacing: .05em; color: var(--ink-2); font-weight: 700; padding-bottom: 4px; }
+  .cdc-out .bt-sep { border-left: 2px solid var(--line); }
+  .cdc-out tr.superseded td { color: var(--muted); background: #fbfcfd; }
+  .bt-cur { color: var(--keep); font-weight: 600; }
+  .cdc-out tr.btfeed-pend td { color: #b6c0c6; }
+  .cdc-out tr.btfeed-cur td { background: var(--blue-bg); }
+
+  /* bitemporal as-of-knowledge grid */
+  .asof-wrap { border: 1px solid var(--line); border-radius: 10px; background: #fff; padding: 16px 18px 18px; }
+  .asof-grid { display: grid; gap: 6px; align-items: stretch; }
+  .asof-axislabel { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .asof-axislabel.x { text-align: center; margin-bottom: 2px; }
+  .asof-axislabel.y { writing-mode: vertical-rl; transform: rotate(180deg); align-self: center; justify-self: center; color: var(--muted); }
+  .asof-axislabel .lite { font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--muted); }
+  .asof-colh, .asof-rowh { font-size: 12px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; display: flex; align-items: center; justify-content: center; padding: 4px 6px; }
+  .asof-rowh { justify-content: flex-end; text-align: right; }
+  .asof-rowh.latest { color: var(--keep); }
+  .asof-rowh .tag { display: block; font-size: 9.5px; font-weight: 700; color: var(--keep); }
+  .asof-cell { border: 1px solid var(--line); border-radius: 7px; padding: 9px 4px; text-align: center; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; cursor: pointer; transition: transform .08s, box-shadow .12s; position: relative; }
+  .asof-cell:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(27,49,57,.10); }
+  .asof-cell.v1 { background: var(--blue-bg); color: var(--blue); border-color: var(--src-line); }
+  .asof-cell.v2 { background: var(--keep-soft); color: var(--keep); border-color: var(--keep-line); }
+  .asof-cell.v3 { background: var(--target-soft); color: var(--target); border-color: var(--target-line); }
+  .asof-cell.gone { background: var(--panel); color: var(--muted); border-style: dashed; }
+  .asof-cell.gone span { text-decoration: line-through; }
+  .asof-cell.sel { outline: 2.5px solid var(--ink); outline-offset: 1px; box-shadow: 0 3px 12px rgba(27,49,57,.16); }
+  .asof-cell.xhair { box-shadow: inset 0 0 0 2px rgba(34,114,180,.30); }
+  .asof-readout { margin-top: 16px; font-size: 14.5px; color: var(--ink-2); line-height: 1.55; min-height: 22px; }
+  .asof-readout b { color: var(--ink); }
+  .asof-readout .pin { font-variant-numeric: tabular-nums; }
+  .asof-readout .val.v1 { color: var(--blue); } .asof-readout .val.v2 { color: var(--keep); } .asof-readout .val.v3 { color: var(--target); }
+  .asof-readout .val.gone { color: var(--muted); }
+  .asof-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; font-size: 12px; color: var(--muted); align-items: center; }
+  .asof-legend i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; vertical-align: middle; margin-right: 5px; border: 1px solid var(--line); }
+  .asof-legend i.v1 { background: var(--blue-bg); border-color: var(--src-line); }
+  .asof-legend i.v2 { background: var(--keep-soft); border-color: var(--keep-line); }
+  .asof-legend i.v3 { background: var(--target-soft); border-color: var(--target-line); }
+  .asof-legend i.gone { background: var(--panel); border-style: dashed; }
+
+  .chips { display: flex; gap: 10px; flex-wrap: wrap; margin: 4px 0 14px; }
+  .chip { font-size: 12.5px; color: var(--ink-2); background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 5px 11px; }
+  .chip b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .chip.warn { background: var(--target-soft); border-color: var(--target-line); color: var(--target); }
+  .chip.ok { background: var(--keep-soft); border-color: var(--keep-line); color: var(--keep); }
+
+  .vmeter { border: 1px solid var(--line); border-radius: 10px; padding: 15px 17px; margin-top: 18px; background: #fff; }
+  .vmeter .vh { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 12px; }
+  .vrow { display: grid; grid-template-columns: 130px 1fr 120px; align-items: center; gap: 12px; margin: 8px 0; }
+  .vrow .vlabel { font-size: 13px; color: var(--ink-2); }
+  .vtrack { height: 14px; background: var(--line-2); border-radius: 7px; overflow: hidden; }
+  .vfill { height: 100%; border-radius: 7px; transition: width .25s; }
+  .vfill.full { background: var(--target); width: 100%; }
+  .vfill.rewind { background: var(--keep); }
+  .vrow .vnum { font-size: 13px; text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .vsave { margin-top: 10px; font-size: 14px; color: var(--keep); font-weight: 600; }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; border: 1px solid var(--line); }
+  .legend i.kept { background: #fff; }
+  .legend i.bad { background: var(--target-soft); border-color: var(--target-line); }
+  .legend i.good { background: var(--keep-soft); border-color: var(--keep-line); }
+
+  @media (max-width: 900px){
+    .shell { grid-template-columns: 1fr; }
+    aside { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--line); }
+    main { padding: 28px 20px 80px; }
+    .flow { grid-template-columns: 1fr; }
+    .arrow { transform: rotate(90deg); height: 28px; }
+    .grid2 { grid-template-columns: 1fr; }
+    h1 { font-size: 30px; }
+    header nav { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header>
+  <div class="brand">
+    <img class="logo" src="databricks-logo.svg" alt="Databricks" />
+    <span class="sep">|</span>
+    <span class="product">SDP Explorer</span>
+  </div>
+  <nav>
+    <a href="#" class="active">Demonstrations</a>
+    <a href="https://docs.databricks.com/aws/en/ldp/" target="_blank">Docs ↗</a>
+  </nav>
+  <div class="header-spacer"></div>
+</header>
+
+<!-- ===== SHELL ===== -->
+<div class="shell">
+  <aside>
+    <div class="side-title">SDP feature demonstrations</div>
+    <div id="nav"></div>
+  </aside>
+  <main id="main"></main>
+</div>
+
+<script>
+/* ============================================================
+   NAVIGATION MODEL — add demos here as we build them
+   ============================================================ */
+const NAV = [
+  {
+    group: "Datasets",
+    items: [
+      { id: "streaming-table",   name: "Streaming Table", status: "soon" },
+      { id: "materialized-view", name: "Materialized View", status: "soon" },
+    ]
+  },
+  {
+    group: "Change data capture",
+    items: [
+      { id: "auto-cdc",            name: "AUTO CDC", status: "ready" },
+      { id: "auto-cdc-snapshot",   name: "AUTO CDC FROM SNAPSHOT", status: "ready" },
+      { id: "auto-cdc-bitemporal", name: "AUTO CDC bitemporal", status: "beta" },
+    ]
+  },
+  {
+    group: "Flows",
+    items: [
+      { id: "append-flow",   name: "Append flow", status: "soon" },
+      { id: "replace-where", name: "REPLACE WHERE", status: "ready" },
+    ]
+  },
+  {
+    group: "Data quality",
+    items: [
+      { id: "expectations", name: "Expectations", status: "soon" },
+      { id: "quarantine",   name: "Quarantine", status: "soon" },
+    ]
+  },
+  {
+    group: "Incremental refresh",
+    items: [
+      { id: "enzyme", name: "Enzyme", status: "soon" },
+    ]
+  },
+  {
+    group: "Recovery & operations",
+    items: [
+      { id: "rewind-replay", name: "Rewind & Replay", status: "preview" },
+    ]
+  },
+];
+
+/* ============================================================
+   DEMO CONTENT
+   ============================================================ */
+const DEMOS = {
+  "replace-where": replaceWhereDemo,
+  "rewind-replay": rewindReplayDemo,
+  "auto-cdc": autoCdcDemo,
+  "auto-cdc-snapshot": autoCdcSnapshotDemo,
+  "auto-cdc-bitemporal": autoCdcBitemporalDemo,
+};
+
+function placeholder(name) {
+  return `<div class="placeholder">
+    <div class="crumb">SDP Explorer</div>
+    <h1>${name}</h1>
+    <p>This demonstration is coming soon. Each card reuses one of a small set of animation primitives —
+    this one will plug into the gallery next.</p>
+  </div>`;
+}
+
+/* ---------- REPLACE WHERE ---------- */
+function replaceWhereDemo() {
+  return `
+  <div class="crumb">SDP Explorer <span class="sep">›</span> Flows <span class="sep">›</span> <b>REPLACE WHERE</b></div>
+  <h1>REPLACE WHERE</h1>
+  <p class="oneliner">In a streaming table, refresh just a <em>slice</em> of the target: on each update, rows matching the predicate are deleted, the source query is recomputed for that same range, and the fresh results are inserted — atomically. Everything outside the predicate is left untouched.</p>
+
+  <section>
+    <h2>See what it does</h2>
+    <div class="flow">
+      <div class="tbl src-panel">
+        <div class="tbl-head">
+          <div class="name">source query</div>
+          <div class="sub">orders_fct ⨝ product_dim · recomputed for matched range</div>
+        </div>
+        <div class="tbl-body" id="srcBody"></div>
+      </div>
+      <div class="arrow" id="arrow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </div>
+      <div class="tbl">
+        <div class="tbl-head">
+          <div class="name">orders_enriched</div>
+          <div class="sub" id="rwToday">Streaming table</div>
+        </div>
+        <div class="tbl-body" id="tgtBody"></div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="play">Run Refresh</button>
+      <button id="reset" class="ghost">Reset</button>
+      <span class="narr" id="narr">Predicate <code class="kw">date >= date_add(current_date(), -7)</code> covers the last 7 days. Run the refresh to restate only that slice.</span>
+    </div>
+
+  </section>
+
+  <section>
+    <h2>The flow</h2>
+    <div class="code-card">
+      <div class="bar">SQL</div>
+<div class="sql"><span class="c-key">CREATE OR REFRESH STREAMING TABLE</span> <span class="c-tbl">orders_enriched</span>
+<span class="c-key">SCHEDULE EVERY</span> <span class="c-num">1</span> <span class="c-key">DAY</span>
+<span class="hl"><span class="c-key">FLOW REPLACE WHERE</span> date >= date_add(current_date(), <span class="c-num">-7</span>) <span class="c-key">BY NAME</span></span>
+<span class="c-key">SELECT</span>
+  o.order_id, o.date, o.region, p.product_name, o.qty, o.price
+<span class="c-key">FROM</span> <span class="c-tbl">orders_fct</span> o
+<span class="c-key">JOIN</span> <span class="c-tbl">product_dim</span> p <span class="c-key">ON</span> o.product_id = p.product_id;</div>
+    </div>
+    <div class="note">
+      <span class="ic">ⓘ</span>
+      <p><b>BY NAME is required</b> — columns are matched by name, not position. And you don't add the predicate to the <code class="kw">SELECT</code>: the pipeline engine applies it automatically when reading the source.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Why not a full refresh?</h2>
+    <div class="grid2">
+      <div class="box bad">
+        <h3>Full refresh</h3>
+        <p>Recomputes the <b>entire</b> streaming table every run — re-reading and rewriting years of history to update the last few days. Slow, expensive, and wasteful when only recent data changes.</p>
+      </div>
+      <div class="box good">
+        <h3>REPLACE WHERE</h3>
+        <p>Recomputes <b>only the predicate range</b>. Older partitions are never touched, so a daily refresh costs the last 7 days of compute — not the whole table — in one atomic commit.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>When to leverage it</h2>
+    <div class="grid2">
+      <div>
+        <div class="col-h">Reach for it when</div>
+        <ul class="clean">
+          <li>Source data is restated within a recent window (late events, corrections, slowly-finalizing facts).</li>
+          <li>You want a cheap, scheduled refresh of just the "hot" range instead of a full rebuild.</li>
+          <li>Backfilling or reprocessing a bounded slice idempotently.</li>
+        </ul>
+      </div>
+      <div>
+        <div class="col-h">Watch out</div>
+        <ul class="clean watch">
+          <li>The deleted slice is fully replaced by the recomputed query — rows the source no longer returns disappear.</li>
+          <li>Predicate must be a partition/range filter the engine can push down, or you over-rewrite.</li>
+          <li>Requires <code class="kw">BY NAME</code>; runs as a flow on a streaming table, not arbitrary DML.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+  `;
+}
+
+/* ---------- REWIND & REPLAY (Streaming Time Travel) ---------- */
+function rewindReplayDemo() {
+  return `
+  <div class="crumb">SDP Explorer <span class="sep">›</span> Recovery & operations <span class="sep">›</span> <b>Rewind &amp; Replay</b></div>
+  <h1>Rewind &amp; Replay</h1>
+  <p class="oneliner"><b>Rewind and Replay</b> recovers a streaming pipeline after a bad commit corrupts recent output. Instead of reprocessing all of history with a full refresh, you rewind the pipeline to a consistent point and replay <em>only</em> the affected data. Drag the rewind point below and watch what it costs — and what it fixes.</p>
+
+  <section>
+    <h2>Try it — pick a rewind point</h2>
+
+    <div class="chips" id="rrChips"></div>
+
+    <div class="stage">
+      <div class="rr-grid" id="rrGrid">
+        <div class="rr-band" id="rrBand"><span class="flag">T · rewind point</span></div>
+        <div class="rr-bug" id="rrBug"><span class="bl">✗ bad commit</span><span class="bm"></span></div>
+
+        <div class="lane">
+          <div class="lane-label">Rewind point</div>
+          <div class="track rr-ruler" id="rrRuler">
+            <div class="rail"></div><div class="fillpast" id="rrFill"></div>
+            <div class="rr-handle" id="rrHandle"></div>
+          </div>
+        </div>
+        <div class="lane">
+          <div class="lane-label" id="rrDateLabel" style="font-size:11px;color:var(--muted);font-weight:600;">Date</div>
+          <div class="track axis-track" id="rrAxis"></div>
+        </div>
+        <div class="lane">
+          <div class="lane-label">Source events<span class="sub2">records / day · Delta · Kafka</span></div>
+          <div class="track" id="rrSrc"></div>
+        </div>
+        <div class="lane">
+          <div class="lane-label">Pipeline<span class="sub2">checkpoint state</span><span class="code-badge bad" id="rrCode">code: buggy</span></div>
+          <div class="track pipe-track" id="rrPipe">
+            <div class="ckpt-rail"></div>
+            <div class="ckpt-ptr" id="rrCkpt"><div class="dot"></div><span>checkpoint</span></div>
+          </div>
+        </div>
+        <div class="lane">
+          <div class="lane-label">Target table<span class="sub2">orders_enriched · revenue</span></div>
+          <div class="track" id="rrTgt"></div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span><i class="kept"></i> untouched (before T)</span>
+        <span><i class="bad"></i> corrupted by bad commit</span>
+        <span><i class="good"></i> replayed &amp; corrected</span>
+      </div>
+
+      <div class="insight">
+        <span class="ic">◔</span>
+        <p id="rrInsight"></p>
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step" id="rrStep1"><div class="t"><span class="num">①</span>Roll back checkpoint</div><div class="d">Source offsets + operator state reset to T.</div></div>
+      <div class="step" id="rrStep2"><div class="t"><span class="num">②</span>Erase target after T</div><div class="d">Delta version restored; rewound rows removed.</div></div>
+      <div class="step" id="rrStep3"><div class="t"><span class="num">③</span>Replay from T</div><div class="d">Re-ingest affected data through fixed code.</div></div>
+    </div>
+
+    <div class="controls">
+      <button id="rrRun">⟲ Rewind &amp; Replay to T</button>
+      <button id="rrReset" class="ghost">Reset</button>
+      <label style="font-size:13px;color:var(--muted);display:inline-flex;align-items:center;gap:6px;">Speed
+        <select id="rrSpeed" style="font-family:inherit;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);">
+          <option value="1" selected>Slow</option>
+          <option value="0.6">Normal</option>
+          <option value="0.32">Fast</option>
+        </select>
+      </label>
+      <span class="narr" id="rrNarr"></span>
+    </div>
+
+    <div class="vmeter">
+      <div class="vh">Compute to recover · rewind vs full refresh</div>
+      <div class="vrow"><span class="vlabel">Full refresh</span><div class="vtrack"><div class="vfill full"></div></div><span class="vnum" id="rrFullNum">8 batches</span></div>
+      <div class="vrow"><span class="vlabel">Rewind &amp; Replay</span><div class="vtrack"><div class="vfill rewind" id="rrRewindFill"></div></div><span class="vnum" id="rrRewindNum">3 batches</span></div>
+      <div class="vsave" id="rrSave"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>What makes this hard to do by hand</h2>
+    <div class="grid2">
+      <div class="box bad">
+        <h3>Full refresh / drop checkpoints</h3>
+        <p>Reprocesses the <b>entire history</b> from scratch — expensive, and per the docs "error-prone, often leading to data loss or duplication." Offsets, Delta versions, and operator state drift out of sync.</p>
+      </div>
+      <div class="box good">
+        <h3>Rewind &amp; Replay</h3>
+        <p>Restores Delta versions, source offsets, and checkpoint state <b>together</b> to a consistent point, then replays only data after T. Rewind is <b>non-destructive</b> — old versions and checkpoints are retained, so it stays reversible.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Rewind ≠ Replay</h2>
+    <div class="note">
+      <span class="ic">ⓘ</span>
+      <p><b>Rewind</b> is a metadata-only state restore — no user code runs and the pipeline stays <b>idle</b> afterward. <b>Replay</b> happens when you <b>restart</b> the pipeline: it runs your current (fixed) definition forward from T until it catches up. The separation lets you inspect or adjust state before resuming.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Invoking the Rewind API</h2>
+    <div class="code-card">
+      <div class="bar">Databricks CLI &nbsp;·&nbsp; requires &gt; 0.283.0</div>
+<div class="sql">databricks pipelines start-update <span class="c-tbl">1234-5678-pipeline-id</span> --json '{
+  <span class="c-jkey">"cause"</span>: <span class="c-str">"API_CALL"</span>,
+  <span class="c-jkey">"rewind_spec"</span>: {
+    <span class="c-jkey">"rewind_timestamp"</span>: <span class="c-str">"2024-01-10T00:00:00Z"</span>,
+    <span class="c-jkey">"dry_run"</span>: <span class="c-num">false</span>,
+    <span class="c-jkey">"datasets"</span>: [{ <span class="c-jkey">"identifier"</span>: <span class="c-str">"main.sales.orders_enriched"</span> }]
+  }
+}'</div>
+    </div>
+    <div class="note">
+      <span class="ic">ⓘ</span>
+      <p>The timestamp is an <b>upper bound</b> — the engine snaps to the closest valid rewind point at or before it. Omit <code class="kw">datasets</code> to rewind the whole pipeline; naming one also cascades to all downstream datasets.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>When to leverage it</h2>
+    <div class="grid2">
+      <div>
+        <div class="col-h">Reach for it when</div>
+        <ul class="clean">
+          <li>A bad commit, schema change, or bad input corrupted recent output and you want a targeted recovery.</li>
+          <li>You need offsets, Delta versions, and state restored <em>consistently</em> — not a partial, manual fix.</li>
+          <li>Reprocessing the full history would be prohibitively expensive.</li>
+        </ul>
+      </div>
+      <div>
+        <div class="col-h">Watch out</div>
+        <ul class="clean watch">
+          <li><b>Triggered pipelines only</b> — no continuous/real-time, no raw Structured Streaming.</li>
+          <li>Sources: <b>Delta &amp; Kafka</b> only (no Auto Loader). Sinks: STs &amp; MVs.</li>
+          <li><b>No stateful operators</b>; many stateful code changes break replay.</li>
+          <li>Bounded by retention (default <b>7 days</b> / ~100 batches); <b>can't rewind past a FULL REFRESH</b>.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+  `;
+}
+
+/* ---------- AUTO CDC ---------- */
+function autoCdcDemo() {
+  return `
+  <div class="crumb">SDP Explorer <span class="sep">›</span> Flows <span class="sep">›</span> <b>AUTO CDC</b></div>
+  <h1>AUTO CDC</h1>
+  <p class="oneliner"><b>AUTO CDC</b> (formerly <code class="kw">APPLY CHANGES</code>) turns a raw change feed — inserts, updates, deletes — into a clean, correct target table. You declare the key and a <code class="kw">SEQUENCE BY</code> column; AUTO CDC applies changes <em>in sequence order regardless of arrival order</em>, and maintains either current state (SCD 1) or full history (SCD 2). Watch how it reconciles a late event that arrives after a delete.</p>
+
+  <section>
+    <h2>Try it — stream a change feed</h2>
+
+    <div class="cdc-toggle" id="cdcToggle">
+      <button data-mode="scd1">SCD Type 1</button>
+      <button data-mode="scd2">SCD Type 2</button>
+    </div>
+    <div class="cdc-mode-desc" id="cdcDesc"></div>
+
+    <div class="cdc-wrap">
+      <div class="tbl">
+        <div class="tbl-head"><div class="name">Change feed</div><div class="sub">arrival order · key 101 (Ava), 102 (Ben)</div></div>
+        <div class="tbl-body" id="cdcFeed" style="min-height:260px;"></div>
+      </div>
+      <div class="tbl">
+        <div class="tbl-head"><div class="name" id="cdcOutName">Target — orders</div><div class="sub" id="cdcOutSub">applied by AUTO CDC</div></div>
+        <div class="tbl-body" id="cdcOut" style="min-height:260px;"></div>
+      </div>
+    </div>
+
+    <div class="recon" id="cdcRecon"><span class="ic">↺</span><p id="cdcReconText"></p></div>
+
+    <div class="controls">
+      <button id="cdcPrev" class="ghost">◀ Previous</button>
+      <button id="cdcRun">▶ Send next change</button>
+      <button id="cdcReset" class="ghost">Reset</button>
+      <span class="narr" id="cdcNarr"></span>
+    </div>
+  </section>
+
+  <section>
+    <h2>The flow</h2>
+    <div class="code-card">
+      <div class="bar">SQL</div>
+<div class="sql"><span class="c-key">CREATE OR REFRESH STREAMING TABLE</span> <span class="c-tbl">orders</span>;
+
+<span class="c-key">CREATE FLOW</span> orders_cdc <span class="c-key">AS AUTO CDC INTO</span> <span class="c-tbl">orders</span>
+<span class="c-key">FROM STREAM</span>(<span class="c-tbl">orders_changes</span>)
+<span class="c-key">KEYS</span> (customer_id)
+<span class="c-key">APPLY AS DELETE WHEN</span> op = <span class="c-str">'DELETE'</span>
+<span class="c-key">SEQUENCE BY</span> event_ts           <span class="c-dim">-- event timestamp; out-of-order safe</span>
+<span class="c-key">STORED AS</span> <span class="c-num">SCD TYPE 2</span>;          <span class="c-dim">-- or SCD TYPE 1</span></div>
+    </div>
+    <div class="note"><span class="ic">ⓘ</span><p><code class="kw">SEQUENCE BY</code> is what makes AUTO CDC out-of-order safe: changes are applied in sequence order, not arrival order. A late event with a lower sequence than what's already applied is treated as stale.</p></div>
+  </section>
+
+  <section>
+    <h2>SCD 1 vs SCD 2</h2>
+    <div class="grid2">
+      <div class="box">
+        <h3>SCD Type 1 — current state</h3>
+        <p>One row per key, always the latest. Updates overwrite in place; a delete removes the row. Smallest, simplest — but no history.</p>
+      </div>
+      <div class="box">
+        <h3>SCD Type 2 — full history</h3>
+        <p>Every version is retained with <code class="kw">__START_AT</code> / <code class="kw">__END_AT</code>. The open row (no end) is current; a delete closes the current row. Answers "what did this look like on date X?"</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>When to leverage it</h2>
+    <div class="grid2">
+      <div>
+        <div class="col-h">Reach for it when</div>
+        <ul class="clean">
+          <li>Ingesting a CDC stream (Debezium, Fivetran, DB change feeds) into a clean table.</li>
+          <li>Source events can arrive out of order or late — let <code class="kw">SEQUENCE BY</code> reconcile.</li>
+          <li>You need either current state (SCD 1) or auditable history (SCD 2) without hand-written MERGE logic.</li>
+        </ul>
+      </div>
+      <div>
+        <div class="col-h">Watch out</div>
+        <ul class="clean watch">
+          <li>The target is owned by the flow — don't write to it manually.</li>
+          <li>Pick the <code class="kw">SEQUENCE BY</code> column carefully; ties and nulls are reconciliation hazards.</li>
+          <li>SCD 2 history grows over time — plan retention.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+  `;
+}
+
+/* ---------- AUTO CDC FROM SNAPSHOT ---------- */
+function autoCdcSnapshotDemo() {
+  return `
+  <div class="crumb">SDP Explorer <span class="sep">›</span> Flows <span class="sep">›</span> <b>AUTO CDC FROM SNAPSHOT</b></div>
+  <h1>AUTO CDC FROM SNAPSHOT</h1>
+  <p class="oneliner">Some sources can't emit a change feed — they only hand you a <b>full snapshot</b> of the table each time. AUTO CDC FROM SNAPSHOT takes successive complete snapshots, <b>diffs each against the previous one</b> to derive inserts, updates, and deletes, and maintains SCD Type 2 history. Deletes are inferred from rows that simply <em>disappear</em>. Step through the snapshots and watch the history build.</p>
+
+  <section>
+    <h2>Try it — receive full snapshots</h2>
+
+    <div class="cdc-wrap">
+      <div class="tbl">
+        <div class="tbl-head"><div class="name">Incoming snapshot</div><div class="sub" id="snHead">—</div></div>
+        <div class="tbl-body" id="snLeft" style="min-height:248px;"></div>
+      </div>
+      <div class="tbl">
+        <div class="tbl-head"><div class="name">Target — customers (SCD 2)</div><div class="sub">full history · __START_AT / __END_AT</div></div>
+        <div class="tbl-body" id="snRight" style="min-height:248px;"></div>
+      </div>
+    </div>
+
+    <div class="recon diff" id="snRecon"><span class="ic">≢</span><p id="snReconText"></p></div>
+
+    <div class="controls">
+      <button id="snPrev" class="ghost">◀ Previous</button>
+      <button id="snRun">▶ Receive next snapshot</button>
+      <button id="snReset" class="ghost">Reset</button>
+      <span class="narr" id="snNarr"></span>
+    </div>
+  </section>
+
+  <section>
+    <h2>The flow</h2>
+    <div class="code-card">
+      <div class="bar">Python</div>
+<div class="sql"><span class="c-key">import</span> dlt
+
+dlt.create_streaming_table(<span class="c-str">"customers"</span>)
+
+dlt.create_auto_cdc_from_snapshot_flow(
+    target=<span class="c-str">"customers"</span>,
+    source=<span class="c-str">"customers_snapshots"</span>,   <span class="c-dim"># full snapshots (table or snapshot fn)</span>
+    keys=[<span class="c-str">"customer_id"</span>],
+    stored_as_scd_type=<span class="c-num">2</span>,            <span class="c-dim"># deletes inferred from absent rows</span>
+)</div>
+    </div>
+    <div class="note"><span class="ic">ⓘ</span><p>Unlike <code class="kw">AUTO CDC</code> (which consumes a change feed via <code class="kw">FROM STREAM</code>), the snapshot variant takes the <b>whole table</b> each time and computes the diff for you — ideal when the source has no change log, only periodic full extracts.</p></div>
+  </section>
+
+  <section>
+    <h2>How it works</h2>
+    <div class="insight">
+      <span class="ic">◔</span>
+      <p>No change events here — each input is a <b>complete snapshot</b> of the table. The engine compares snapshot N to N−1: a new key is an <b>insert</b>, a changed value is an <b>update</b> (close the old version, open a new one), and a key that <b>vanished</b> is a <b>delete</b> (close the current version).</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>When to leverage it</h2>
+    <div class="grid2">
+      <div>
+        <div class="col-h">Reach for it when</div>
+        <ul class="clean">
+          <li>The source can only provide full table dumps / periodic extracts (no change log).</li>
+          <li>You still need full SCD 2 history and correct delete handling.</li>
+          <li>Snapshots arrive on a schedule and you want the diff computed automatically.</li>
+        </ul>
+      </div>
+      <div>
+        <div class="col-h">Watch out</div>
+        <ul class="clean watch">
+          <li>Deletes are inferred from <em>absence</em> — a partial or filtered snapshot looks like mass deletes.</li>
+          <li>Each snapshot must be the <b>complete</b> table for the keys in scope.</li>
+          <li>SCD 2 history grows over time — plan retention.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+  `;
+}
+
+/* ---------- AUTO CDC bitemporal ---------- */
+function autoCdcBitemporalDemo() {
+  return `
+  <div class="crumb">SDP Explorer <span class="sep">›</span> Change data capture <span class="sep">›</span> <b>AUTO CDC bitemporal</b></div>
+  <h1>AUTO CDC bitemporal</h1>
+  <p class="oneliner">Bitemporal extends SCD Type 2 to track <b>two timelines at once</b>: <b>business time</b> — when a fact was true in the real world — and <b>system time</b> — when the pipeline learned it. That lets you answer not just "what was the price on Jan 1?" but "what did we <em>believe</em> it was when we made a decision on Jan 3?" — even when data arrives late or out of order. Step through the change feed and watch both timelines build.</p>
+
+  <section>
+    <h2>Try it — apply a change feed</h2>
+    <div class="tbl">
+      <div class="tbl-head"><div class="name">Change feed</div><div class="sub">company A · all times on 2025-07-18</div></div>
+      <div class="tbl-body" id="btFeed"></div>
+    </div>
+    <div style="height:14px"></div>
+    <div class="tbl">
+      <div class="tbl-head"><div class="name">Target — prices (bitemporal)</div><div class="sub">business validity + system awareness · superseded beliefs greyed</div></div>
+      <div class="tbl-body" id="btTable" style="overflow-x:auto;"></div>
+    </div>
+
+    <div class="recon diff" id="btBanner"><span class="ic">≢</span><p id="btBannerText"></p></div>
+
+    <div class="controls">
+      <button id="btPrev" class="ghost">◀ Previous</button>
+      <button id="btRun">▶ Apply next change</button>
+      <button id="btReset" class="ghost">Reset</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>The payoff — ask an as-of-knowledge question</h2>
+    <p class="oneliner" style="font-size:16px;margin-bottom:18px;">Those four temporal columns aren't bookkeeping — they let you ask a question a normal table can't answer: <b>"what did we believe the price was, and when?"</b> Pick a cell. Each one answers <em>at business time X, as known by system time Y, the price was…</em> The grid below is reconstructed entirely from the bitemporal table above.</p>
+    <div class="asof-wrap">
+      <div class="asof-axislabel x">business time → <span class="lite">when the price was actually true</span></div>
+      <div style="display:grid;grid-template-columns:auto 1fr;gap:10px;">
+        <div class="asof-axislabel y">as of system time ↓ <span class="lite">what we knew by</span></div>
+        <div class="asof-grid" id="asofGrid"></div>
+      </div>
+      <div class="asof-readout" id="asofReadout"></div>
+      <div class="asof-legend">
+        <span><i class="v1"></i>XFv1</span>
+        <span><i class="v2"></i>XFv2</span>
+        <span><i class="v3"></i>XFv3</span>
+        <span><i class="gone"></i>deleted</span>
+      </div>
+    </div>
+    <div class="insight" style="margin-top:16px;">
+      <span class="ic">◎</span>
+      <p>Read <b>down a single column</b>: the real-world moment never changes, but the answer does — because the pipeline kept learning. Business <b>12:10</b> reads <b>XFv1</b> until the out-of-order correction lands, then flips to <b>XFv3</b> — yet the earlier rows are still there, so a decision made at 12:22 can be audited against <em>what was known then</em>, not what we know now. Read <b>across a row</b> instead and you get the full business history as the system understood it at one instant. That two-way reconstruction is what a single-timeline SCD Type 2 table can't give you.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>The flow</h2>
+    <div class="code-card">
+      <div class="bar">SQL</div>
+<div class="sql"><span class="c-key">CREATE OR REFRESH STREAMING TABLE</span> <span class="c-tbl">prices</span>;
+
+<span class="c-key">CREATE FLOW</span> prices_cdc <span class="c-key">AS AUTO CDC INTO</span> <span class="c-tbl">prices</span>
+<span class="c-key">FROM STREAM</span>(<span class="c-tbl">price_changes</span>)
+<span class="c-key">KEYS</span> (company_id)
+<span class="c-key">APPLY AS DELETE WHEN</span> op = <span class="c-str">'DELETE'</span>
+<span class="c-key">SEQUENCE BY</span> business_time           <span class="c-dim">-- business (valid) time</span>
+<span class="c-key">SYSTEM SEQUENCE BY</span> system_time      <span class="c-dim">-- system (ingest) time</span>
+<span class="c-key">STORED AS BITEMPORAL</span>;</div>
+    </div>
+    <div class="note"><span class="ic">ⓘ</span><p>Bitemporal AUTO CDC is in <b>Beta</b>. It generates four temporal columns: <code class="kw">__START_AT</code> / <code class="kw">__END_AT</code> for business validity, and <code class="kw">__SYSTEM_START_AT</code> / <code class="kw">__SYSTEM_END_AT</code> for system awareness.</p></div>
+  </section>
+
+  <section>
+    <h2>How it works</h2>
+    <div class="insight">
+      <span class="ic">◔</span>
+      <p>On every change the engine doesn't just append. It <b>closes the prior belief on the system axis</b> (sets <code class="kw">__SYSTEM_END_AT</code> on the rows that were system-open) and <b>inserts corrected rows</b> stamped with the new system time. For an <b>out-of-order</b> event (earlier business time, later system time) it <em>corrects history in place</em> — splitting the affected business interval — instead of appending to the end. A <b>delete</b> ends business existence with no replacement row. The greyed rows are past beliefs; you can reconstruct exactly what the system thought at any point in time.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>When to leverage it</h2>
+    <div class="grid2">
+      <div>
+        <div class="col-h">Reach for it when</div>
+        <ul class="clean">
+          <li>You must audit <em>what you believed and when</em> — finance, risk, regulatory reporting.</li>
+          <li>Source data is frequently restated or backdated, and decisions were made on stale values.</li>
+          <li>You need to reproduce a past system state exactly (as-of-knowledge queries).</li>
+        </ul>
+      </div>
+      <div>
+        <div class="col-h">Watch out</div>
+        <ul class="clean watch">
+          <li><b>Beta</b> — validate before production use.</li>
+          <li>Both sequencing columns must be sortable; <code class="kw">NULL</code> sequencing values aren't supported.</li>
+          <li>History grows on two axes — a single key can fan out into many rows; plan retention.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+  `;
+}
+
+/* ============================================================
+   RUNTIME
+   ============================================================ */
+function renderNav(activeId) {
+  const nav = document.getElementById("nav");
+  nav.innerHTML = NAV.map(g => `
+    <div class="nav-group">
+      <div class="grp-label">${g.group}</div>
+      ${g.items.map(it => {
+        const isSoon = it.status === "soon";
+        const cls = isSoon ? "nav-item soon"
+                  : (it.id === activeId ? "nav-item active" : "nav-item");
+        const right = isSoon ? '<span class="pill">soon</span>'
+                    : it.status === "preview" ? '<span class="pill preview">preview</span>'
+                    : it.status === "beta" ? '<span class="pill preview">beta</span>' : '';
+        const dataAttr = isSoon ? '' : `data-id="${it.id}"`;
+        return `<div class="${cls}" ${dataAttr}>${it.name}${right}</div>`;
+      }).join("")}
+    </div>`).join("");
+
+  nav.querySelectorAll(".nav-item[data-id]").forEach(el => {
+    el.addEventListener("click", () => route(el.getAttribute("data-id")));
+  });
+}
+
+function route(id) {
+  const main = document.getElementById("main");
+  renderNav(id);
+  if (DEMOS[id]) {
+    main.innerHTML = DEMOS[id]();
+    if (id === "replace-where") wireReplaceWhere();
+    if (id === "rewind-replay") wireRewindReplay();
+    if (id === "auto-cdc") wireAutoCdc();
+    if (id === "auto-cdc-snapshot") wireAutoCdcSnapshot();
+    if (id === "auto-cdc-bitemporal") wireAutoCdcBitemporal();
+  } else {
+    const item = NAV.flatMap(g => g.items).find(i => i.id === id);
+    main.innerHTML = placeholder(item ? item.name : id);
+  }
+  main.scrollTop = 0;
+  window.scrollTo(0, 0);
+}
+
+/* ---------- REPLACE WHERE animation wiring ---------- */
+function wireReplaceWhere() {
+  // contiguous daily partitions ending today; predicate date >= current_date() - 7 = last 7 days
+  const today = new Date(); today.setHours(0,0,0,0);
+  const pad2 = n => String(n).padStart(2, "0");
+  const iso = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  const dayOff = o => { const d = new Date(today); d.setDate(d.getDate() + o); return d; };
+  const regions = ["ON · web", "BC · web", "QC · store", "AB · store"];
+  const OFFS = [-30, -14, -2, -1, 0];   // a couple of older partitions + the last few days
+  const inWindow = o => o >= -7;        // matched by date >= current_date() - 7 (last 7 days)
+  const tgtInitial = OFFS.map((o,i) => ({
+    day: iso(dayOff(o)),
+    label: regions[i % regions.length],
+    amt: 1000 + ((i * 83) % 380),
+    cls: inWindow(o) ? "target" : "keep",
+  }));
+  const srcRows = OFFS.filter(inWindow).map(o => {
+    const i = OFFS.indexOf(o);
+    return { day: iso(dayOff(o)), label: regions[i % regions.length], amt: 1000 + ((i * 83) % 380) + 75 };
+  });
+  const windowStart = iso(dayOff(-7));
+
+  const srcBody = document.getElementById("srcBody");
+  const tgtBody = document.getElementById("tgtBody");
+  const narr = document.getElementById("narr");
+  const arrow = document.getElementById("arrow");
+  const playBtn = document.getElementById("play");
+  const resetBtn = document.getElementById("reset");
+
+  const tag = (cls, txt) => `<span class="tag ${cls}">${txt}</span>`;
+  function rowHTML(r, cls, tagEl, extra="") {
+    return `<div class="row ${cls} ${extra}">
+      <span class="part">${r.day}</span>
+      <span class="label">${r.label} ${tagEl}</span>
+      <span class="amt">$${r.amt.toLocaleString()}</span>
+    </div>`;
+  }
+  const renderSrc = (opts={}) =>
+    srcBody.innerHTML = srcRows.map(r => rowHTML(r, "src", tag("src","recomputed"), opts.consumed ? "consumed" : "")).join("");
+  const renderTgt = (rows, opts={}) =>
+    tgtBody.innerHTML = rows.map(r => {
+      const t = r.cls === "keep" ? tag("keep","outside window")
+              : r.cls === "target" ? tag("target","in last 7 days")
+              : tag("src","inserted");
+      const extra = (opts.enter && r.cls === "src") ? "entering" : "";
+      return rowHTML(r, r.cls, t, extra);
+    }).join("");
+
+  function reset() {
+    document.getElementById("rwToday").textContent = `Streaming table · today = ${iso(today)}`;
+    renderSrc();
+    renderTgt(tgtInitial);
+    arrow.classList.remove("live");
+    narr.innerHTML = "Predicate <code class='kw'>date >= date_add(current_date(), -7)</code> covers the last 7 days. Run the refresh to restate only that slice.";
+    playBtn.disabled = false;
+  }
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+
+  async function play() {
+    playBtn.disabled = true;
+    reset();
+    await wait(450);
+    arrow.classList.add("live");
+    narr.innerHTML = "Engine applies the predicate to the target — the last-7-days rows are selected, older partitions stay frozen.";
+    await wait(1350);
+    tgtBody.querySelectorAll('.row.target').forEach(el => el.classList.add('removing'));
+    narr.innerHTML = "Matched rows are deleted from <code class='kw'>orders_enriched</code>…";
+    await wait(950);
+    const kept = tgtInitial.filter(r => r.cls === "keep");
+    const merged = [ ...kept, ...srcRows.map(r => ({ ...r, cls: "src" })) ];
+    renderTgt(merged, { enter: true });
+    renderSrc({ consumed: true });
+    await wait(60);
+    tgtBody.querySelectorAll('.row.src.entering').forEach(el => el.classList.remove('entering'));
+    narr.innerHTML = "…the source query is recomputed for that range and the fresh rows inserted — <b>one atomic commit</b>.";
+    await wait(1350);
+    arrow.classList.remove("live");
+    narr.innerHTML = `Done — only the last-7-days slice changed. History before ${windowStart} was never rewritten.`;
+  }
+
+  playBtn.addEventListener("click", play);
+  resetBtn.addEventListener("click", reset);
+  reset();
+}
+
+/* ---------- REWIND & REPLAY — interactive ---------- */
+function wireRewindReplay() {
+  const N = 15;            // 15 daily batches, indices 0..14
+  const BUG = 12;          // bad commit landed between Jan 14 and Jan 15 → indices >=12 corrupted (Jan 15–17)
+  const LABELW = 132;      // must match --lane-label
+  const correct = [1240, 980, 1310, 1105, 1420, 1290, 1175, 1360, 1230, 1450, 1380, 1120, 1290, 1340, 1410];
+  const bad = correct.map((v,i) => i >= BUG ? Math.round(v * 1.9) : v); // inflated where i>=BUG
+  // source event volume — STEADY ~100/day, no spike even where target is corrupted
+  const events = [104, 98, 110, 101, 107, 99, 112, 103, 108, 100, 106, 97, 111, 102, 109];
+  // dates anchored on today: batch i = N-1 is today, earlier batches count back day by day
+  const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const pad = n => String(n).padStart(2, "0");
+  const dateAt = i => { const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() - (N - 1 - i)); return d; };
+  const dnum  = i => pad(dateAt(i).getDate());                                   // day-of-month tick
+  const isoAt = i => { const d = dateAt(i); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+  const shortAt = i => { const d = dateAt(i); return `${MON[d.getMonth()]} ${d.getDate()}`; };
+  const fmt = v => "$" + (v/1000).toFixed(2) + "k";
+
+  let speedMul = 1;
+
+  const grid   = document.getElementById("rrGrid");
+  const band   = document.getElementById("rrBand");
+  const bug     = document.getElementById("rrBug");
+  const ruler  = document.getElementById("rrRuler");
+  const fill   = document.getElementById("rrFill");
+  const handle = document.getElementById("rrHandle");
+  const axis   = document.getElementById("rrAxis");
+  const srcT   = document.getElementById("rrSrc");
+  const tgtT   = document.getElementById("rrTgt");
+  const ckpt   = document.getElementById("rrCkpt");
+  const codeB  = document.getElementById("rrCode");
+  const chips  = document.getElementById("rrChips");
+  const steps  = [1,2,3].map(n => document.getElementById("rrStep"+n));
+  const runBtn = document.getElementById("rrRun");
+  const resetBtn = document.getElementById("rrReset");
+  const narr   = document.getElementById("rrNarr");
+  const rewindFill = document.getElementById("rrRewindFill");
+  const rewindNum  = document.getElementById("rrRewindNum");
+  const fullNum = document.getElementById("rrFullNum");
+  const saveEl = document.getElementById("rrSave");
+  fullNum.textContent = N + " batches";
+
+  // build cells — x-axis shows dates
+  axis.innerHTML = Array.from({length:N}, (_,i)=>`<div class="tick">${dnum(i)}</div>`).join("");
+  srcT.innerHTML = Array.from({length:N}, (_,i)=>`<div class="cell src-cell consumed" id="rrS${i}">${events[i]}</div>`).join("");
+  tgtT.innerHTML = Array.from({length:N}, (_,i)=>`<div class="cell tgt-cell" id="rrT${i}"></div>`).join("");
+
+  const speedSel = document.getElementById("rrSpeed");
+  speedMul = parseFloat(speedSel.value);
+  speedSel.addEventListener("change", () => { speedMul = parseFloat(speedSel.value); });
+
+  // bug marker fixed at fraction BUG/N
+  const fbug = BUG / N;
+  bug.style.left = `calc(${LABELW}px + ${fbug} * (100% - ${LABELW}px))`;
+  bug.style.bottom = "6px";
+
+  // dynamic, today-anchored labels
+  document.getElementById("rrDateLabel").textContent = `Date · ${shortAt(0)} – ${shortAt(N-1)}`;
+  document.getElementById("rrInsight").innerHTML =
+    `<b>Source events held steady (~100/day)</b> through ${shortAt(N-1)} — but target revenue nearly <b>doubled</b> from ${shortAt(BUG)} on. The inputs didn't spike; the <b>code</b> did. That's the tell-tale of a bad commit — and exactly what replaying the same source through fixed code corrects.`;
+
+  let k = 12;       // rewind point: rewound indices are i >= k (default captures all corruption)
+  let busy = false, done = false;
+
+  function setBand() {
+    const f = k / N;
+    band.style.left = `calc(${LABELW}px + ${f} * (100% - ${LABELW}px))`;
+    handle.style.left = (f * 100) + "%";
+    fill.style.width = (f * 100) + "%";
+  }
+
+  // target cell state. Corrupted = i>=BUG. Rewound region = i>=k.
+  // After replay: rewound region corrected; corrupted rows BEFORE T are never touched → stay wrong.
+  function renderTarget(replayed) {
+    for (let i=0;i<N;i++){
+      const el = document.getElementById("rrT"+i);
+      let cls, val;
+      if (i >= k) {
+        if (replayed) { cls = "good replayed"; val = correct[i]; }
+        else if (i >= BUG) { cls = "bad"; val = bad[i]; }
+        else { cls = "kept"; val = correct[i]; }
+      } else { // before T — untouched by rewind
+        if (i >= BUG) { cls = "bad"; val = bad[i]; }   // leftover corruption
+        else { cls = "kept"; val = correct[i]; }
+      }
+      el.className = "cell tgt-cell " + cls;
+      el.innerHTML = `<span class="bn">${dnum(i)}</span>${fmt(val)}`;
+    }
+  }
+
+  function renderChips() {
+    const reproc = N - k;
+    const remaining = Math.max(0, Math.min(k, N) - BUG); // corrupted indices < k that stay
+    const statusOk = remaining === 0;
+    chips.innerHTML = `
+      <span class="chip">Rewind to <b>T = ${isoAt(k)}</b></span>
+      <span class="chip">Reprocess <b>${reproc}</b> of ${N} batches</span>
+      <span class="chip ${statusOk ? 'ok' : 'warn'}">${statusOk
+        ? '✓ Captures all corrupted data'
+        : '⚠ ' + remaining + ' corrupted batch' + (remaining>1?'es':'') + ' before T would remain — drag T earlier'}</span>`;
+    // value meter
+    const pct = Math.round(reproc / N * 100);
+    rewindFill.style.width = pct + "%";
+    rewindNum.textContent = reproc + " batch" + (reproc>1?"es":"");
+    saveEl.textContent = `↓ ${Math.round((1 - reproc/N) * 100)}% less compute than a full refresh`;
+  }
+
+  function fullReset() {
+    busy = false; done = false;
+    runBtn.disabled = false; runBtn.textContent = "⟲ Rewind & Replay to T";
+    ckpt.style.left = "100%";
+    for (let i=0;i<N;i++) document.getElementById("rrS"+i).className = "cell src-cell consumed";
+    steps.forEach(el => el.classList.remove("active","done"));
+    codeB.className = "code-badge bad"; codeB.textContent = "code: buggy";
+    bug.classList.remove("patched"); bug.querySelector(".bl").textContent = "✗ bad commit";
+    setBand(); renderTarget(false); renderChips();
+    narr.innerHTML = "";
+  }
+
+  function setK(nk) {
+    if (busy) return;
+    nk = Math.max(1, Math.min(N-1, nk));
+    if (nk === k && !done) return;
+    k = nk;
+    if (done) { fullReset(); } else { setBand(); renderTarget(false); renderChips(); }
+  }
+
+  // pointer drag / click on ruler
+  function pointerToK(clientX) {
+    const r = ruler.getBoundingClientRect();
+    const f = (clientX - r.left) / r.width;
+    return Math.round(f * N);
+  }
+  let dragging = false;
+  ruler.addEventListener("pointerdown", e => { dragging = true; ruler.setPointerCapture(e.pointerId); setK(pointerToK(e.clientX)); });
+  ruler.addEventListener("pointermove", e => { if (dragging) setK(pointerToK(e.clientX)); });
+  ruler.addEventListener("pointerup",   () => { dragging = false; });
+
+  const wait = ms => new Promise(r=>setTimeout(r, ms * speedMul));
+  async function run() {
+    if (busy) return;
+    busy = true; done = false; runBtn.disabled = true;
+    steps.forEach(el => el.classList.remove("active","done"));
+
+    // ⓿ redeploy the fix — the deployed code flips buggy → fixed, commit marker patches
+    codeB.className = "code-badge fixed"; codeB.textContent = "code: fixed ✓";
+    bug.classList.add("patched"); bug.querySelector(".bl").textContent = "✓ patched commit";
+    narr.innerHTML = "<b>Fix redeployed.</b> The pipeline now runs correct logic — but the target is still corrupted from the bad commit. Now recover the data:";
+    await wait(1900);
+
+    // ① checkpoint rollback
+    steps[0].classList.add("active");
+    ckpt.style.left = (k / N * 100) + "%";
+    for (let i=k;i<N;i++) document.getElementById("rrS"+i).className = "cell src-cell available";
+    for (let i=k;i<N;i++) document.getElementById("rrT"+i).classList.add("targeting");  // mark cells being operated on
+    narr.innerHTML = "<b>① Checkpoint rolled back to T.</b> Source offsets & operator state reset — batches after T are no longer consumed.";
+    await wait(2600);
+
+    // ② erase target after T
+    steps[0].classList.remove("active"); steps[0].classList.add("done");
+    steps[1].classList.add("active");
+    for (let i=k;i<N;i++){ const el=document.getElementById("rrT"+i); el.className="cell tgt-cell empty erasing"; el.innerHTML=`<span class="bn">${dnum(i)}</span>·`; }
+    narr.innerHTML = "<b>② Target restored to its version at T.</b> The rewound rows are removed — non-destructive, old versions retained.";
+    await wait(2600);
+
+    // ③ replay
+    steps[1].classList.remove("active"); steps[1].classList.add("done");
+    steps[2].classList.add("active");
+    for (let i=k;i<N;i++) document.getElementById("rrS"+i).className = "cell src-cell replaying";
+    narr.innerHTML = "<b>③ Restart → Replay.</b> Batches after T re-ingest through the <b>fixed</b> code, rebuilding only the affected data.";
+    await wait(1500);
+    renderTarget(true);
+    ckpt.style.left = "100%";
+    await wait(1400);
+    for (let i=k;i<N;i++) document.getElementById("rrS"+i).className = "cell src-cell consumed";
+    steps[2].classList.remove("active"); steps[2].classList.add("done");
+
+    const remaining = Math.max(0, Math.min(k, N) - BUG);
+    narr.innerHTML = remaining === 0
+      ? "Done — target is <b>correct</b> and only " + (N-k) + " batch(es) were reprocessed. No full refresh."
+      : "Replayed — but <b>" + remaining + "</b> corrupted batch(es) before T were never rewound and remain wrong. Rewind earlier to fix them.";
+    busy = false; done = true;
+    runBtn.disabled = false; runBtn.textContent = "↺ Run again";
+  }
+
+  runBtn.addEventListener("click", () => { if (done) fullReset(); run(); });
+  resetBtn.addEventListener("click", fullReset);
+
+  // initial layout (after DOM settles so ruler has width)
+  fullReset();
+}
+
+/* ---------- AUTO CDC wiring ---------- */
+function wireAutoCdc() {
+  // change feed in ARRIVAL order (≠ sequence order). seq_num drives reconciliation.
+  const EV = [
+    { key:101, name:"Ava", op:"INSERT", seq:1, city:"Toronto"   },
+    { key:102, name:"Ben", op:"INSERT", seq:1, city:"Ottawa"    },
+    { key:101, name:"Ava", op:"UPDATE", seq:2, city:"Calgary"   },
+    { key:102, name:"Ben", op:"UPDATE", seq:2, city:"Halifax"   },
+    { key:101, name:"Ava", op:"DELETE", seq:4, city:null        },
+    { key:101, name:"Ava", op:"UPDATE", seq:3, city:"Vancouver", late:true },
+  ];
+  const DESC = {
+    scd1: "<b>SCD Type 1</b> — one row per key, always the latest. Updates overwrite; a delete removes the row.",
+    scd2: "<b>SCD Type 2</b> — full history per key with <code class='kw'>__START_AT</code> / <code class='kw'>__END_AT</code>. The open row is current; a delete closes it.",
+  };
+
+  const feedEl = document.getElementById("cdcFeed");
+  const outEl  = document.getElementById("cdcOut");
+  const outName= document.getElementById("cdcOutName");
+  const outSub = document.getElementById("cdcOutSub");
+  const descEl = document.getElementById("cdcDesc");
+  const toggle = document.getElementById("cdcToggle");
+  const recon  = document.getElementById("cdcRecon");
+  const reconT = document.getElementById("cdcReconText");
+  const runBtn = document.getElementById("cdcRun");
+  const prevBtn = document.getElementById("cdcPrev");
+  const resetBtn = document.getElementById("cdcReset");
+  const narr   = document.getElementById("cdcNarr");
+
+  // seq_num → event timestamp (display). seq drives ordering; ts is what's shown.
+  const TS = { 1:"09:00", 2:"09:05", 3:"09:10", 4:"09:15" };
+  const tsOf = s => TS[s];
+
+  let mode = "scd1";
+  let applied = 0;       // number of feed events applied
+  let prevSig = new Set();
+
+  const opCls = o => o === "INSERT" ? "ins" : o === "UPDATE" ? "upd" : "del";
+
+  const FEED_HEAD = `<div class="ev-head"><span>customer_id</span><span>op</span><span>event_ts</span><span>city</span></div>`;
+
+  function renderFeed(curIdx) {
+    feedEl.innerHTML = FEED_HEAD + EV.map((e,i) => {
+      const cls = i === curIdx ? "current" : i < applied ? "applied" : "pending";
+      const data = e.op === "DELETE" ? "—" : e.city;
+      const late = e.late ? `<span class="late-tag">late · out of order</span>` : "";
+      return `<div class="ev ${cls}">
+        <span class="k">${e.key} ${e.name}</span>
+        <span class="op ${opCls(e.op)}">${e.op}</span>
+        <span class="seq">${tsOf(e.seq)}</span>
+        <span class="dat">${data}${late}</span>
+      </div>`;
+    }).join("");
+  }
+
+  // current applied events
+  const slice = () => EV.slice(0, applied);
+
+  function computeSCD1(evs) {
+    const byKey = {};
+    evs.forEach(e => { if (!byKey[e.key] || e.seq > byKey[e.key].seq) byKey[e.key] = e; });
+    return Object.values(byKey)
+      .filter(e => e.op !== "DELETE")
+      .sort((a,b) => a.key - b.key)
+      .map(e => ({ sig: `${e.key}|${e.city}`, cells: [e.key, e.name, e.city] }));
+  }
+
+  function computeSCD2(evs) {
+    const keys = [...new Set(evs.map(e => e.key))].sort((a,b)=>a-b);
+    const rows = [];
+    keys.forEach(key => {
+      const es = evs.filter(e => e.key === key).sort((a,b) => a.seq - b.seq);
+      const vers = [];
+      es.forEach(e => {
+        if (e.op === "DELETE") { if (vers.length && vers[vers.length-1].end == null) vers[vers.length-1].end = e.seq; }
+        else { if (vers.length && vers[vers.length-1].end == null) vers[vers.length-1].end = e.seq; vers.push({ name:e.name, city:e.city, start:e.seq, end:null }); }
+      });
+      vers.forEach(v => rows.push({
+        sig: `${key}|${v.city}|${v.start}|${v.end}`,
+        open: v.end == null,
+        cells: [key, v.name, v.city, tsOf(v.start), v.end == null ? "—" : tsOf(v.end)],
+      }));
+    });
+    return rows;
+  }
+
+  function renderOut(flash) {
+    const rows = mode === "scd1" ? computeSCD1(slice()) : computeSCD2(slice());
+    outName.textContent = mode === "scd1" ? "Target — orders (SCD 1)" : "Target — orders (SCD 2)";
+    outSub.textContent  = mode === "scd1" ? "current state · one row per key" : "full history · __START_AT / __END_AT";
+    const head = mode === "scd1"
+      ? `<tr><th>customer_id</th><th>name</th><th>city</th></tr>`
+      : `<tr><th>customer_id</th><th>name</th><th>city</th><th>__START_AT</th><th>__END_AT</th></tr>`;
+    if (!rows.length) {
+      const ncol = mode === "scd1" ? 3 : 5;
+      outEl.innerHTML = `<table class="cdc-out"><thead>${head}</thead><tbody><tr><td colspan="${ncol}" class="cdc-empty">No rows yet — send a change.</td></tr></tbody></table>`;
+      prevSig = new Set(); return;
+    }
+    const body = rows.map(r => {
+      const isNew = flash && !prevSig.has(r.sig);
+      const cls = [ r.open === false && mode==="scd2" ? "closed" : "", isNew ? "flash" : "" ].filter(Boolean).join(" ");
+      const tds = r.cells.map((c,ci) => {
+        if (mode === "scd2" && ci === 4) {
+          return c === "—" ? `<td class="open">current <span class="badge-cur">open</span></td>` : `<td class="seqcell">${c}</td>`;
+        }
+        if (mode === "scd2" && ci === 3) return `<td class="seqcell">${c}</td>`;
+        return `<td>${c}</td>`;
+      }).join("");
+      return `<tr class="${cls}">${tds}</tr>`;
+    }).join("");
+    outEl.innerHTML = `<table class="cdc-out"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+    prevSig = new Set(rows.map(r => r.sig));
+  }
+
+  function reconText(m) {
+    return m === "scd1"
+      ? "<b>Late event reconciled.</b> Ava's UPDATE→Vancouver carries timestamp <b>09:10</b>, but a DELETE at <b>09:15</b> is already applied. AUTO CDC orders by <code class='kw'>SEQUENCE BY</code> — 09:10 is older than 09:15, so it's stale and ignored. The row <b>stays deleted</b>; no resurrection."
+      : "<b>Late event reconciled.</b> Ava's UPDATE→Vancouver (<b>09:10</b>) arrived after the DELETE (09:15). AUTO CDC slots it into history by timestamp: <b>Vancouver becomes the 09:10 → 09:15 version</b>, and Calgary's <code class='kw'>__END_AT</code> is corrected from 09:15 to 09:10.";
+  }
+
+  function updateBtn() {
+    const done = applied >= EV.length;
+    runBtn.disabled = done;
+    runBtn.textContent = done ? `All ${EV.length} changes applied` : `▶ Send next change  (${applied} / ${EV.length})`;
+    prevBtn.disabled = applied <= 0;
+  }
+
+  function describe(i) {
+    const e = EV[i];
+    if (e.late) return "A <b>late, out-of-order</b> event arrives — AUTO CDC reconciles it by timestamp, not arrival.";
+    const verb = e.op === "INSERT" ? "inserted" : e.op === "UPDATE" ? "updated" : "deleted";
+    return `${e.key} ${e.name} ${verb}${e.op==="DELETE"?"":" → "+e.city} <span style="color:var(--muted)">(${tsOf(e.seq)})</span>`;
+  }
+
+  function setMode(m) {
+    mode = m;
+    [...toggle.children].forEach(b => b.classList.toggle("active", b.dataset.mode === m));
+    descEl.innerHTML = DESC[m];
+    renderOut(false);
+    if (applied >= EV.length) reconT.innerHTML = reconText(m);  // keep callout in sync with mode
+  }
+
+  function reset() {
+    applied = 0; prevSig = new Set();
+    recon.classList.remove("show");
+    narr.innerHTML = "";
+    renderFeed(-1); renderOut(false); updateBtn();
+  }
+
+  function step() {
+    if (applied >= EV.length) return;
+    const i = applied;
+    applied = i + 1;
+    renderFeed(i);
+    renderOut(true);
+    recon.classList.toggle("show", applied >= EV.length);
+    if (EV[i].late) reconT.innerHTML = reconText(mode);
+    narr.innerHTML = describe(i);
+    updateBtn();
+  }
+
+  function prev() {
+    if (applied <= 0) return;
+    applied -= 1;
+    const cur = applied - 1;
+    renderFeed(cur);
+    renderOut(true);
+    recon.classList.toggle("show", applied >= EV.length);
+    narr.innerHTML = cur >= 0 ? describe(cur) : "";
+    updateBtn();
+  }
+
+  toggle.addEventListener("click", e => {
+    const b = e.target.closest("button[data-mode]");
+    if (b) setMode(b.dataset.mode);
+  });
+  runBtn.addEventListener("click", step);
+  prevBtn.addEventListener("click", prev);
+  resetBtn.addEventListener("click", reset);
+
+  setMode("scd1");
+  reset();
+}
+
+/* ---------- AUTO CDC FROM SNAPSHOT wiring ---------- */
+function wireAutoCdcSnapshot() {
+  const TIMES = ["2024-06-01", "2024-06-02", "2024-06-03", "2024-06-04"];
+  // each snapshot is a COMPLETE table state
+  const SNAPS = [
+    { rows: [ {key:101,name:"Ava",city:"Toronto"}, {key:102,name:"Ben",city:"Ottawa"} ] },
+    { rows: [ {key:101,name:"Ava",city:"Calgary"}, {key:102,name:"Ben",city:"Ottawa"}, {key:103,name:"Cara",city:"Halifax"} ] },
+    { rows: [ {key:101,name:"Ava",city:"Calgary"}, {key:103,name:"Cara",city:"Halifax"} ] },
+    { rows: [ {key:101,name:"Ava",city:"Vancouver"}, {key:103,name:"Cara",city:"Halifax"} ] },
+  ];
+  const RHEAD = `<tr><th>customer_id</th><th>name</th><th>city</th><th>__START_AT</th><th>__END_AT</th></tr>`;
+
+  const snHead  = document.getElementById("snHead");
+  const snLeft  = document.getElementById("snLeft");
+  const snRight = document.getElementById("snRight");
+  const recon   = document.getElementById("snRecon");
+  const reconT  = document.getElementById("snReconText");
+  const runBtn  = document.getElementById("snRun");
+  const prevBtn = document.getElementById("snPrev");
+  const resetBtn= document.getElementById("snReset");
+  const narr    = document.getElementById("snNarr");
+
+  let applied = 0;          // snapshots received
+  let prevSig = new Set();
+
+  // diff snapshot idx against idx-1 → tag each row new|changed|same, plus deleted ghosts
+  function diffRows(idx) {
+    const cur = SNAPS[idx].rows;
+    const prev = idx > 0 ? SNAPS[idx-1].rows : null;
+    const pm = {}; if (prev) prev.forEach(r => pm[r.key] = r);
+    const out = cur.map(r => {
+      let tag;
+      if (!prev) tag = "base";
+      else if (!(r.key in pm)) tag = "new";
+      else if (pm[r.key].city !== r.city) tag = "changed";
+      else tag = "same";
+      return { ...r, tag };
+    });
+    if (prev) prev.forEach(r => { if (!cur.find(x => x.key === r.key)) out.push({ ...r, tag: "deleted" }); });
+    out.sort((a,b) => a.key - b.key);
+    return out;
+  }
+
+  // build SCD2 history from the first `n` snapshots by diffing consecutively
+  function buildSCD2(n) {
+    const state = {}; // key -> { name, versions:[{city,start,end}], openIdx }
+    for (let si = 0; si < n; si++) {
+      const t = TIMES[si];
+      const present = new Set();
+      SNAPS[si].rows.forEach(r => {
+        present.add(r.key);
+        const s = state[r.key] || (state[r.key] = { name:r.name, versions:[], openIdx:-1 });
+        if (s.openIdx === -1) { s.versions.push({ city:r.city, start:t, end:null }); s.openIdx = s.versions.length-1; }
+        else {
+          const ov = s.versions[s.openIdx];
+          if (ov.city !== r.city) { ov.end = t; s.versions.push({ city:r.city, start:t, end:null }); s.openIdx = s.versions.length-1; }
+        }
+      });
+      Object.keys(state).forEach(k => {
+        const s = state[k];
+        if (s.openIdx !== -1 && !present.has(+k)) { s.versions[s.openIdx].end = t; s.openIdx = -1; }
+      });
+    }
+    const rows = [];
+    Object.keys(state).map(Number).sort((a,b)=>a-b).forEach(k => {
+      const s = state[k];
+      s.versions.forEach(v => rows.push({
+        key:k, name:s.name, city:v.city, start:v.start, end:v.end, open:v.end==null,
+        sig:`${k}|${v.city}|${v.start}|${v.end}`,
+      }));
+    });
+    return rows;
+  }
+
+  function renderLeft(idx) {
+    if (idx < 0) { snHead.textContent = "—"; snLeft.innerHTML = `<div class="cdc-empty">No snapshot yet — receive the first one.</div>`; return; }
+    snHead.textContent = `Snapshot ${idx+1} of ${SNAPS.length} · ${TIMES[idx]} · complete table`;
+    // plain full snapshot — just the table as received (a deleted key is simply absent)
+    const body = SNAPS[idx].rows.slice().sort((a,b) => a.key - b.key)
+      .map(r => `<tr><td>${r.key}</td><td>${r.name}</td><td>${r.city}</td></tr>`).join("");
+    snLeft.innerHTML = `<table class="cdc-out"><thead><tr><th>customer_id</th><th>name</th><th>city</th></tr></thead><tbody>${body}</tbody></table>`;
+  }
+
+  function renderRight(flash) {
+    const rows = buildSCD2(applied);
+    if (!rows.length) { snRight.innerHTML = `<table class="cdc-out"><thead>${RHEAD}</thead><tbody><tr><td colspan="5" class="cdc-empty">No rows yet — receive a snapshot.</td></tr></tbody></table>`; prevSig = new Set(); return; }
+    const body = rows.map(r => {
+      const isNew = flash && !prevSig.has(r.sig);
+      const cls = [ !r.open ? "closed" : "", isNew ? "flash" : "" ].filter(Boolean).join(" ");
+      const endCell = r.open ? `<td class="open">current <span class="badge-cur">open</span></td>` : `<td class="seqcell">${r.end}</td>`;
+      return `<tr class="${cls}"><td>${r.key}</td><td>${r.name}</td><td>${r.city}</td><td class="seqcell">${r.start}</td>${endCell}</tr>`;
+    }).join("");
+    snRight.innerHTML = `<table class="cdc-out"><thead>${RHEAD}</thead><tbody>${body}</tbody></table>`;
+    prevSig = new Set(rows.map(r => r.sig));
+  }
+
+  // every snapshot's derived diff, in one consistent banner
+  function showDiff(idx) {
+    if (idx < 0) { recon.classList.remove("show"); return; }
+    recon.classList.add("show");
+    if (idx === 0) {
+      reconT.innerHTML = `<b>Snapshot 1 — initial load.</b> ${SNAPS[0].rows.length} rows inserted as new SCD 2 records (start ${TIMES[0]}).`;
+      return;
+    }
+    const d = diffRows(idx);
+    const upd = d.filter(r => r.tag === "changed").map(r => r.name);
+    const ins = d.filter(r => r.tag === "new").map(r => r.name);
+    const del = d.filter(r => r.tag === "deleted");
+    const parts = [];
+    if (upd.length) parts.push(`<b>${upd.length} update</b> (${upd.join(", ")})`);
+    if (ins.length) parts.push(`<b>${ins.length} insert</b> (${ins.join(", ")})`);
+    if (del.length) parts.push(`<b>${del.length} delete</b> (${del.map(r => r.name).join(", ")})`);
+    let txt = `<b>Snapshot ${idx+1} vs previous:</b> ${parts.join(" · ") || "no changes"}.`;
+    if (del.length) {
+      const names = del.map(r => `${r.key} ${r.name}`).join(", ");
+      txt += ` ${names} ${del.length > 1 ? "are" : "is"} <b>absent</b>, so AUTO CDC infers a delete and closes the current version at ${TIMES[idx]} — no delete event needed.`;
+    }
+    reconT.innerHTML = txt;
+  }
+
+  function updateBtn() {
+    const done = applied >= SNAPS.length;
+    runBtn.disabled = done;
+    runBtn.textContent = done ? `All ${SNAPS.length} snapshots received` : `▶ Receive next snapshot  (${applied} / ${SNAPS.length})`;
+    prevBtn.disabled = applied <= 0;
+  }
+
+  function reset() {
+    applied = 0; prevSig = new Set();
+    recon.classList.remove("show");
+    narr.innerHTML = "";
+    renderLeft(-1); renderRight(false); updateBtn();
+  }
+
+  function step() {
+    if (applied >= SNAPS.length) return;
+    const idx = applied;
+    applied = idx + 1;
+    renderLeft(idx);
+    renderRight(true);
+    showDiff(idx);
+    updateBtn();
+  }
+
+  function prev() {
+    if (applied <= 0) return;
+    applied -= 1;
+    const idx = applied - 1;
+    renderLeft(idx);
+    renderRight(true);
+    showDiff(idx);
+    updateBtn();
+  }
+
+  runBtn.addEventListener("click", step);
+  prevBtn.addEventListener("click", prev);
+  resetBtn.addEventListener("click", reset);
+  reset();
+}
+
+/* ---------- AUTO CDC bitemporal wiring (replicates docs example exactly) ---------- */
+function wireAutoCdcBitemporal() {
+  // change feed: [data, business_time, system_time, op]  — all on 2025-07-18
+  const FEED = [
+    { data:"XFv1", biz:"10:01:00", sys:"10:05:00", op:"INSERT" },
+    { data:"XFv2", biz:"12:15:43", sys:"12:20:00", op:"UPDATE" },
+    { data:"XFv3", biz:"12:05:00", sys:"12:25:00", op:"UPDATE" }, // out-of-order: earlier biz, later sys
+    { data:"XFv2", biz:"12:30:00", sys:"12:30:00", op:"DELETE" },
+  ];
+  // target state after each step — rows: [data, __START_AT, __END_AT, __SYSTEM_START_AT, __SYSTEM_END_AT] (null = NULL)
+  const STATES = [
+    [ ["XFv1","10:01:00",null,"10:05:00",null] ],
+    [ ["XFv1","10:01:00",null,"10:05:00","12:20:00"],
+      ["XFv1","10:01:00","12:15:43","12:20:00",null],
+      ["XFv2","12:15:43",null,"12:20:00",null] ],
+    [ ["XFv1","10:01:00",null,"10:05:00","12:20:00"],
+      ["XFv1","10:01:00","12:15:43","12:20:00","12:25:00"],
+      ["XFv1","10:01:00","12:05:00","12:25:00",null],
+      ["XFv3","12:05:00","12:15:43","12:25:00",null],
+      ["XFv2","12:15:43",null,"12:20:00",null] ],
+    [ ["XFv1","10:01:00",null,"10:05:00","12:20:00"],
+      ["XFv1","10:01:00","12:15:43","12:20:00","12:25:00"],
+      ["XFv1","10:01:00","12:05:00","12:25:00",null],
+      ["XFv3","12:05:00","12:15:43","12:25:00",null],
+      ["XFv2","12:15:43",null,"12:20:00","12:30:00"],
+      ["XFv2","12:15:43","12:30:00","12:30:00",null] ],
+  ];
+  const BANNERS = [
+    `<b>INSERT.</b> XFv1 is valid from business time <b>10:01:00</b> with no known end, and the system learned of it at <b>10:05:00</b>. One row opens on both timelines.`,
+    `<b>UPDATE (in order).</b> XFv2 takes over at business time <b>12:15:43</b>. The engine closes the old belief on the system axis (XFv1's open row gets <code class='kw'>__SYSTEM_END_AT</code> 12:20:00) and writes the corrected business history as known from 12:20:00 — XFv1 now ends 12:15:43, XFv2 opens.`,
+    `<b>OUT-OF-ORDER UPDATE.</b> XFv3's business time (<b>12:05:00</b>) is earlier than XFv2's, but it arrived later (system <b>12:25:00</b>). Instead of appending, the engine corrects history in place — XFv1 now ends 12:05:00, XFv3 spans 12:05:00 → 12:15:43 — and closes the superseded belief at system 12:25:00.`,
+    `<b>DELETE.</b> XFv2's business existence ends at <b>12:30:00</b>. No replacement row is created; XFv2 is kept in two rows — preserving both when it ceased to exist (business) and when the system learned of it (system 12:30:00).`,
+  ];
+
+  const THEAD = `<thead>
+    <tr><th rowspan="2">company_id</th><th rowspan="2">data_point</th>
+        <th colspan="2" class="grp bt-sep">business validity</th>
+        <th colspan="2" class="grp bt-sep">system awareness</th></tr>
+    <tr><th class="bt-sep">__START_AT</th><th>__END_AT</th>
+        <th class="bt-sep">__SYSTEM_START_AT</th><th>__SYSTEM_END_AT</th></tr>
+  </thead>`;
+
+  const feedEl = document.getElementById("btFeed");
+  const tblEl  = document.getElementById("btTable");
+  const banner = document.getElementById("btBanner");
+  const bannerT= document.getElementById("btBannerText");
+  const runBtn = document.getElementById("btRun");
+  const prevBtn= document.getElementById("btPrev");
+  const resetBtn = document.getElementById("btReset");
+
+  let applied = 0;        // changes applied (0..4)
+  let prevSig = new Set();
+
+  function renderFeed(cur) {
+    const body = FEED.map((e,i) => {
+      const opc = e.op === "INSERT" ? "ins" : e.op === "UPDATE" ? "upd" : "del";
+      const rc = i === cur ? "btfeed-cur" : i < applied ? "" : "btfeed-pend";
+      const late = e.op === "UPDATE" && i === 2 ? `<span class="late-tag">out of order</span>` : "";
+      return `<tr class="${rc}"><td>A</td><td>${e.data}</td><td class="seqcell">${e.biz}</td><td class="seqcell">${e.sys}</td><td><span class="op ${opc}">${e.op}</span>${late}</td></tr>`;
+    }).join("");
+    feedEl.innerHTML = `<table class="cdc-out"><thead><tr><th>company_id</th><th>data_point</th><th>business_time</th><th>system_time</th><th>op</th></tr></thead><tbody>${body}</tbody></table>`;
+  }
+
+  function renderTable(stateIdx, flash) {
+    if (stateIdx < 0) { tblEl.innerHTML = `<table class="cdc-out">${THEAD}<tbody><tr><td colspan="6" class="cdc-empty">No rows yet — apply the first change.</td></tr></tbody></table>`; prevSig = new Set(); return; }
+    const state = STATES[stateIdx];
+    const cell = v => v === null ? "—" : v;
+    const body = state.map(r => {
+      const [data,bS,bE,sS,sE] = r;
+      const sig = r.join("|");
+      const superseded = sE !== null;             // system-closed = a past belief
+      const isNew = flash && !prevSig.has(sig);
+      const cls = [ superseded ? "superseded" : "", isNew ? "flash" : "" ].filter(Boolean).join(" ");
+      const sEnd = sE === null ? `<span class="bt-cur">current</span>` : cell(sE);
+      return `<tr class="${cls}"><td>A</td><td>${data}</td>
+        <td class="bt-sep seqcell">${cell(bS)}</td><td class="seqcell">${cell(bE)}</td>
+        <td class="bt-sep seqcell">${cell(sS)}</td><td class="seqcell">${sEnd}</td></tr>`;
+    }).join("");
+    tblEl.innerHTML = `<table class="cdc-out">${THEAD}<tbody>${body}</tbody></table>`;
+    prevSig = new Set(state.map(r => r.join("|")));
+  }
+
+  function showBanner(idx) {
+    if (idx < 0) { banner.classList.remove("show"); return; }
+    banner.classList.add("show");
+    bannerT.innerHTML = BANNERS[idx];
+  }
+
+  function updateBtn() {
+    const done = applied >= FEED.length;
+    runBtn.disabled = done;
+    runBtn.textContent = done ? `All ${FEED.length} changes applied` : `▶ Apply next change  (${applied} / ${FEED.length})`;
+    prevBtn.disabled = applied <= 0;
+  }
+
+  function reset() {
+    applied = 0; prevSig = new Set();
+    renderFeed(-1); renderTable(-1, false); showBanner(-1); updateBtn();
+  }
+  function step() {
+    if (applied >= FEED.length) return;
+    const idx = applied; applied = idx + 1;
+    renderFeed(idx); renderTable(idx, true); showBanner(idx); updateBtn();
+  }
+  function prev() {
+    if (applied <= 0) return;
+    applied -= 1; const idx = applied - 1;
+    renderFeed(idx); renderTable(idx, true); showBanner(idx); updateBtn();
+  }
+
+  runBtn.addEventListener("click", step);
+  prevBtn.addEventListener("click", prev);
+  resetBtn.addEventListener("click", reset);
+  reset();
+
+  wireBitemporalAsOf();
+}
+
+/* ---------- bitemporal as-of-knowledge grid (reconstructed from the table above) ---------- */
+function wireBitemporalAsOf() {
+  const grid = document.getElementById("asofGrid");
+  const readout = document.getElementById("asofReadout");
+  if (!grid) return;
+
+  const COLS = ["11:00", "12:10", "12:25", "12:35"];          // business times
+  const ROWS = ["10:10", "12:22", "12:27", "12:31"];          // as-of system times
+  // value at [row][col]: "v1" | "v2" | "v3" | "gone"
+  const CELLS = [
+    ["v1", "v1", "v1", "v1"],
+    ["v1", "v1", "v2", "v2"],
+    ["v1", "v3", "v2", "v2"],
+    ["v1", "v3", "v2", "gone"],
+  ];
+  const LABEL = { v1: "XFv1", v2: "XFv2", v3: "XFv3", gone: "deleted" };
+
+  grid.style.gridTemplateColumns = `auto repeat(${COLS.length}, 1fr)`;
+  let html = `<div></div>` + COLS.map(c => `<div class="asof-colh">${c}</div>`).join("");
+  ROWS.forEach((r, ri) => {
+    const latest = ri === ROWS.length - 1;
+    html += `<div class="asof-rowh${latest ? " latest" : ""}">${r}${latest ? `<span class="tag">latest</span>` : ""}</div>`;
+    CELLS[ri].forEach((v, ci) => {
+      const txt = v === "gone" ? `<span>—</span>` : LABEL[v];
+      html += `<div class="asof-cell ${v}" data-r="${ri}" data-c="${ci}">${txt}</div>`;
+    });
+  });
+  grid.innerHTML = html;
+
+  const cells = grid.querySelectorAll(".asof-cell");
+  function select(ri, ci) {
+    cells.forEach(el => {
+      const r = +el.dataset.r, c = +el.dataset.c;
+      el.classList.toggle("sel", r === ri && c === ci);
+      el.classList.toggle("xhair", (r === ri || c === ci) && !(r === ri && c === ci));
+    });
+    const v = CELLS[ri][ci];
+    const verb = v === "gone"
+      ? `the price <b class="val gone">had been deleted</b> — no value existed`
+      : `the price was <b class="val ${v}">${LABEL[v]}</b>`;
+    readout.innerHTML = `At business time <b class="pin">${COLS[ci]}</b>, as known by system time <b class="pin">${ROWS[ri]}</b>, ${verb}.`;
+  }
+  cells.forEach(el => el.addEventListener("click", () => select(+el.dataset.r, +el.dataset.c)));
+
+  // open on the cell that tells the story best: business 12:10, before the out-of-order correction
+  select(1, 1);
+  readout.innerHTML += ` <span style="color:var(--muted);">Now read down to <b class="pin" style="color:var(--ink-2)">12:27</b> in the same column — the answer flips to XFv3.</span>`;
+}
+
+/* ---------- boot ---------- */
+route("replace-where");
+</script>
+</body>
+</html>
